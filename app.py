@@ -21,7 +21,7 @@ st.markdown("""
 :root { --bg:#f4f7fb; --surface:#ffffff; --border:#e1e8f0; --border-strong:#cbd5e1; --text:#15263f; --muted:#64748b; --accent:#087f8c; }
 html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] { background:var(--bg); color:var(--text); font-family:Inter,"Segoe UI",sans-serif; }
 [data-testid="stHeader"] {background:transparent;}
-.block-container {padding-top:2rem; padding-bottom:3rem; max-width:100% !important; padding-left:2rem !important; padding-right:2rem !important;}
+.block-container {padding-top:2rem; padding-bottom:3rem; width:94% !important; max-width:1500px !important; margin-left:auto !important; margin-right:auto !important; padding-left:1.5rem !important; padding-right:1.5rem !important;}
 h1,h2,h3 {color:var(--text); letter-spacing:-.035em;}
 [data-testid="stSidebar"] {background:#edf3f8; border-right:1px solid var(--border);}
 [data-testid="stVerticalBlockBorderWrapper"], [data-testid="stVerticalBlock"][style*="border: 1px"] {background:white; border-radius:18px; border-color:var(--border); box-shadow:0 4px 20px #15263f05;}
@@ -71,7 +71,7 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 [data-testid="stExpander"] {background:white;border-color:var(--border);border-radius:12px;}
 [data-testid="stAlert"] {border-radius:12px;}
 [data-testid="stMetric"] {background:white;border:1px solid var(--border);border-radius:14px;padding:16px;}
-@media(max-width:700px) {.block-container {padding:1rem !important;} .hero {padding:26px 22px;} .hero h1 {font-size:26px;} .brand-name {font-size:12px;} .module-card {min-height:0;} .kpi-card {min-height:125px;} }
+@media(max-width:700px) {.block-container {width:100% !important; padding:1rem !important;} .hero {padding:26px 22px;} .hero h1 {font-size:26px;} .brand-name {font-size:12px;} .module-card {min-height:0;} .kpi-card {min-height:125px;} }
 @media(prefers-reduced-motion:reduce) {* {transition:none!important;}}
 </style>
 """, unsafe_allow_html=True)
