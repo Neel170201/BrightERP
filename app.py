@@ -1222,12 +1222,10 @@ try:
             st.divider()
             _render_today_lots("lot_table_editor_cp", "generate_txt_btn_cp", "download_txt_lot_btn_cp")
 
-        # ── SUB-TAB 3: Master Lot Generation Data ───────────────────────────────
+        # ── SUB-TAB 3: Master Lot Data (compact view, no filters/table) ──────────
         if lot_section == '📊 Master Lot Data':
-            st.markdown(_label("📊  All lots generated before today — tick rows → generate TXT", margin_bottom=12), unsafe_allow_html=True)
-
+            st.markdown(_label("📊  All lots generated before today", margin_bottom=12), unsafe_allow_html=True)
             today_str = datetime.now().strftime("%Y-%m-%d")
-
             master_df = read_frame(
                 """
                 SELECT report_no, lot_no, memo_no, buyer_name, buying_date,
@@ -1243,134 +1241,107 @@ try:
                 params=(today_str,),
             )
 
-            # ── Report No / Lot No filters ────────────────────────────────────
-            mflt1, mflt2 = st.columns(2)
-            master_report_flt = mflt1.text_input("REPORT NO", key="master_report_filter", placeholder="LG123…")
-            master_lot_flt    = mflt2.text_input("LOT NO",    key="master_lot_filter",    placeholder="918123…")
-
-            if master_report_flt:
-                master_df = master_df[
-                    master_df["report_no"].astype(str).str.contains(master_report_flt, case=False, na=False)
-                ]
-            if master_lot_flt:
-                master_df = master_df[
-                    master_df["lot_no"].astype(str).str.contains(master_lot_flt, case=False, na=False)
-                ]
-
             if master_df.empty:
-                st.info("ℹ️ No lots found matching your filters.")
+                st.info("ℹ️ No master lots generated before today.")
             else:
                 per_carat_m = pd.to_numeric(master_df["per_carat"], errors="coerce").fillna(0)
-                amount_m    = pd.to_numeric(master_df["amount"],    errors="coerce").fillna(0)
+                amount_m = pd.to_numeric(master_df["amount"], errors="coerce").fillna(0)
                 bank_rate_m = pd.to_numeric(master_df["bank_rate"], errors="coerce").fillna(0)
-
                 if is_video:
                     per_carat_m = per_carat_m * 0
-                    amount_m    = amount_m    * 0
+                    amount_m = amount_m * 0
                     bank_rate_m = bank_rate_m * 0
 
-                # Summary metrics
                 mm1, mm2, mm3 = st.columns(3)
-                mm1.metric("💎 Total Stones", len(master_df))
+                mm1.metric("💎 Total Stones", f"{len(master_df):,}")
                 mm2.metric("📦 Total Carats", round(pd.to_numeric(master_df["cts"], errors="coerce").sum(), 2))
-                mm3.metric("💰 Total AMT USD", round(amount_m.sum(), 2))
-                st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+                if not is_video:
+                    mm3.metric("💰 Total AMT USD", round(amount_m.sum(), 2))
 
-                master_display = pd.DataFrame({
-                    "SELECT":             False,
-                    "CERTIFICATE":        master_df["report_no"].values,
-                    "LOT NUMBER":         master_df["lot_no"].values,
-                    "MEMO NO":            master_df["memo_no"].values,
-                    "BUYER NAME":         master_df["buyer_name"].values,
-                    "BUY DATE":           pd.to_datetime(master_df["buying_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
-                    "PARTY NAME":         master_df["party_name"].values,
-                    "LAB":                master_df["lab"].values,
-                    "WT.":                master_df["cts"].values,
-                    "SHAPE":              master_df["shape"].values,
-                    "COLOR":              master_df["color"].values,
-                    "CLARITY":            master_df["clarity"].values,
-                    "ORG.COST":           per_carat_m.values,
-                    "BANK RATE":          bank_rate_m.values,
-                    "TOTAL BUYING PRICE": amount_m.values,
-                    "INR P/C":            round(per_carat_m * bank_rate_m, 2).values,
-                    "INR TOTAL":          round(amount_m    * bank_rate_m, 2).values,
-                    "LOT DATE":           pd.to_datetime(master_df["lot_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
-                    "REMARK":             master_df["remark"].values,
-                }).fillna("")
-
-                # ── SELECT ALL toggle for master table ────────────────────────
-                master_select_all = st.checkbox("☑ Select All / Deselect All", key="master_select_all")
-                master_display["SELECT"] = master_select_all
-
-                edited_master_df = st.data_editor(
-                    master_display,
-                    column_config={
-                        "SELECT": st.column_config.CheckboxColumn("✔", default=False, width="small"),
-                    },
-                    disabled=[c for c in master_display.columns if c != "SELECT"],
-                    use_container_width=True,
-                    hide_index=True,
-                    key="master_table_editor",
-                    height=560,
+                st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+                st.caption("To generate TXT, paste certificate numbers (one per line). The full master table preview has been removed.")
+                pasted_certificates = st.text_area(
+                    "Certificate numbers for TXT",
+                    key="master_paste_certificates",
+                    placeholder="LG841638639\nLG841638699",
+                    height=110,
                 )
-
-                selected_certs_master = edited_master_df[edited_master_df["SELECT"] == True]["CERTIFICATE"].tolist()
-
-                mb1, mb2, mb3 = st.columns([3, 1, 1])
-                mb1.markdown(
-                    f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
-                    f'border-radius:8px;padding:10px 16px;margin-top:6px;display:inline-block;">'
-                    f'<span style="font-size:12px;color:#737373;">SELECTED</span>'
-                    f'&nbsp;&nbsp;<span style="font-size:20px;font-weight:800;color:#171717;">{len(selected_certs_master)}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-
-                if mb2.button("📥 Generate TXT", key="master_generate_txt_btn"):
-                    if not selected_certs_master:
-                        st.warning("⚠️ Please select at least one row first.")
+                selection = list(dict.fromkeys(
+                    normalize_cert(x.strip()) for x in pasted_certificates.splitlines() if x.strip()
+                ))
+                txt_col, excel_col = st.columns([1, 1])
+                if txt_col.button("📥 Generate TXT", key="master_generate_txt_btn", use_container_width=True):
+                    if not selection:
+                        st.warning("⚠️ Paste at least one certificate number.")
                     else:
-                        m_txt_df = master_df[master_df["report_no"].astype(str).isin(selected_certs_master)].copy()
-                        m_txt_df["per_carat"] = pd.to_numeric(m_txt_df["per_carat"], errors="coerce").fillna(0)
-                        m_txt_df["bank_rate"] = pd.to_numeric(m_txt_df["bank_rate"], errors="coerce").fillna(0)
-                        if is_video:
-                            m_export_df = pd.DataFrame({
-                                "Lot#":         m_txt_df["lot_no"],
-                                "Certificate#": m_txt_df["report_no"],
-                                "Weight":       m_txt_df["cts"],
-                                "Cost/Cts":     0,
-                                "Lab":          m_txt_df["lab"],
-                            }).fillna("")
+                        matched = master_df[master_df["report_no"].astype(str).isin(selection)].copy()
+                        missing = set(selection) - set(matched["report_no"].astype(str))
+                        if missing:
+                            st.warning(f"⚠️ {len(missing)} certificate(s) not found in master lots: " + ", ".join(sorted(missing)[:15]))
+                        if matched.empty:
+                            st.error("No matching master lots found.")
                         else:
-                            m_export_df = pd.DataFrame({
-                                "Certificate#": m_txt_df["report_no"],
-                                "Lot#":         m_txt_df["lot_no"],
-                                "Lab":          m_txt_df["lab"],
-                                "Weight":       m_txt_df["cts"],
-                                "Cost/Cts":     round(m_txt_df["per_carat"] * m_txt_df["bank_rate"], 2),
-                            }).fillna("")
-                        txt_content = m_export_df.to_csv(sep="\t", index=False)
-                        st.download_button(
-                            label="⬇ Download TXT File",
-                            data=txt_content,
-                            file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
-                            mime="text/plain",
-                            key="master_download_txt_btn",
-                        )
-                        st.success(f"✅ {len(m_export_df)} stones added to TXT file")
-                        st.dataframe(m_export_df, use_container_width=True)
+                            cost = pd.to_numeric(matched["per_carat"], errors="coerce").fillna(0)
+                            bank = pd.to_numeric(matched["bank_rate"], errors="coerce").fillna(0)
+                            if is_video:
+                                export_df = pd.DataFrame({
+                                    "Lot#": matched["lot_no"],
+                                    "Certificate#": matched["report_no"],
+                                    "Weight": matched["cts"],
+                                    "Cost/Cts": 0,
+                                    "Lab": matched["lab"],
+                                }).fillna("")
+                            else:
+                                export_df = pd.DataFrame({
+                                    "Certificate#": matched["report_no"],
+                                    "Lot#": matched["lot_no"],
+                                    "Lab": matched["lab"],
+                                    "Weight": matched["cts"],
+                                    "Cost/Cts": round(cost * bank, 2),
+                                }).fillna("")
+                            st.session_state["master_txt_content"] = export_df.to_csv(sep="\t", index=False)
+                            st.session_state["master_txt_count"] = len(export_df)
+                if st.session_state.get("master_txt_content"):
+                    st.success(f"✅ {st.session_state['master_txt_count']} stones ready for TXT download")
+                    st.download_button(
+                        "⬇ Download TXT File",
+                        data=st.session_state["master_txt_content"],
+                        file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
+                        mime="text/plain",
+                        key="master_download_txt_btn",
+                    )
 
-                # Excel download — full master data
+                # Full Excel export still works without rendering a data table.
                 import io
+                master_export = pd.DataFrame({
+                    "CERTIFICATE": master_df["report_no"].values,
+                    "LOT NUMBER": master_df["lot_no"].values,
+                    "MEMO NO": master_df["memo_no"].values,
+                    "BUYER NAME": master_df["buyer_name"].values,
+                    "BUY DATE": pd.to_datetime(master_df["buying_date"], errors="coerce", dayfirst=True).dt.strftime("%d-%m-%Y").values,
+                    "PARTY NAME": master_df["party_name"].values,
+                    "LAB": master_df["lab"].values,
+                    "WT.": master_df["cts"].values,
+                    "SHAPE": master_df["shape"].values,
+                    "COLOR": master_df["color"].values,
+                    "CLARITY": master_df["clarity"].values,
+                    "ORG.COST": per_carat_m.values,
+                    "BANK RATE": bank_rate_m.values,
+                    "TOTAL BUYING PRICE": amount_m.values,
+                    "INR P/C": round(per_carat_m * bank_rate_m, 2).values,
+                    "INR TOTAL": round(amount_m * bank_rate_m, 2).values,
+                    "LOT DATE": pd.to_datetime(master_df["lot_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
+                    "REMARK": master_df["remark"].values,
+                }).fillna("")
                 master_excel_buf = io.BytesIO()
-                master_display.drop(columns=["SELECT"]).to_excel(master_excel_buf, index=False, engine="openpyxl")
-                master_excel_buf.seek(0)
-                mb3.download_button(
-                    label="⬇ Excel",
-                    data=master_excel_buf,
+                master_export.to_excel(master_excel_buf, index=False, engine="openpyxl")
+                excel_col.download_button(
+                    "⬇ Download Full Master Excel",
+                    data=master_excel_buf.getvalue(),
                     file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     key="master_lot_download_btn",
+                    use_container_width=True,
                 )
 
 
