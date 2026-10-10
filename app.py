@@ -51,10 +51,18 @@ h1,h2,h3 {color:var(--text); letter-spacing:-.035em;}
 .login-brand .brand-mark {margin:0 auto 18px;width:72px;height:72px;}
 .login-brand h2 {font-size:24px;margin:8px 0;}
 .login-brand p {font-size:13px;color:var(--muted);}
-.module-card {min-height:96px;padding:0 2px;}
-.module-icon {display:inline-flex;align-items:center;justify-content:center;background:var(--tint,#e6f5f4);width:32px;height:32px;border-radius:9px;font-size:18px;margin-bottom:8px;}
-.module-title {font-size:14px;font-weight:700;color:var(--text);margin:0 0 6px;}
-.module-copy {font-size:12px;line-height:1.4;color:var(--muted);margin:0 0 4px;}
+.module-card {position:relative;min-height:110px;padding:2px 4px 0;border-radius:18px;transition:transform .24s ease, filter .24s ease;}
+.module-card::after {content:"";position:absolute;inset:auto 0 -10px 0;height:18px;background:radial-gradient(circle, rgba(16,40,66,.12) 0%, rgba(16,40,66,0) 72%);filter:blur(10px);opacity:0;transition:opacity .24s ease;pointer-events:none;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card) {transition:transform .24s ease, box-shadow .24s ease, border-color .24s ease, background .24s ease;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card):hover {transform:translateY(-7px); box-shadow:0 18px 38px rgba(21,38,63,.12); border-color:#bfd0e3; background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card):hover .module-card {transform:translateY(-1px);}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card):hover .module-card::after {opacity:1;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card):hover .module-icon {transform:scale(1.05) translateY(-1px); box-shadow:0 14px 26px rgba(21,38,63,.16);} 
+.module-icon {position:relative;display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:14px;font-size:21px;font-weight:700;margin-bottom:12px;background:linear-gradient(145deg,var(--icon-bg,#e6f5f4),#ffffff);color:var(--icon-color,#102842);box-shadow:0 10px 22px rgba(21,38,63,.10), inset 0 1px 0 rgba(255,255,255,.95);border:1px solid rgba(255,255,255,.92);transition:transform .24s ease, box-shadow .24s ease;}
+.module-icon::before {content:"";position:absolute;inset:4px;border-radius:11px;background:linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,255,255,0));pointer-events:none;}
+.module-icon .glyph {position:relative;line-height:1; display:block; transform:translateY(-.5px);} 
+.module-title {font-size:14px;font-weight:800;color:var(--text);margin:0 0 6px;letter-spacing:-.01em;}
+.module-copy {font-size:12px;line-height:1.5;color:var(--muted);margin:0 0 4px;}
 .kpi-card {background:white;border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:15px;padding:18px 16px;min-height:148px;box-shadow:0 4px 16px #15263f04;}
 .kpi-icon {display:block;font-size:19px;margin-bottom:10px;}
 .kpi-label {font-size:10px;letter-spacing:.07em;font-weight:650;color:var(--muted);margin:0 0 6px;}
@@ -65,11 +73,11 @@ h1,h2,h3 {color:var(--text); letter-spacing:-.035em;}
 .section-header .icon {background:#e5f3f3;padding:9px;border-radius:12px;font-size:20px;}
 .section-header .title {font-size:24px;font-weight:700;letter-spacing:-.03em;color:var(--text);}
 .section-divider {height:1px;background:var(--border);margin-bottom:22px;}
-.stButton button,.stDownloadButton button,[data-testid="stFormSubmitButton"] button {border-radius:10px;min-height:42px;border:1px solid var(--border-strong);background:white;color:#213c55;font-weight:600;transition:background .15s,border-color .15s;}
-.stButton button:hover,.stDownloadButton button:hover {border-color:#087f8c;color:#066975;background:#effafa;}
-button[kind="primary"] {background:#087f8c!important;border-color:#087f8c!important;color:white!important;}
+.stButton button,.stDownloadButton button,[data-testid="stFormSubmitButton"] button {border-radius:14px;min-height:44px;border:1px solid #c9d6e6;background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%);color:#18324b;font-weight:700;letter-spacing:.01em;box-shadow:0 8px 20px rgba(21,38,63,.06), inset 0 1px 0 rgba(255,255,255,.95);transition:transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease, color .18s ease;}
+.stButton button:hover,.stDownloadButton button:hover,[data-testid="stFormSubmitButton"] button:hover {transform:translateY(-2px);border-color:#8eb9c0;color:#0f5160;background:linear-gradient(180deg,#ffffff 0%,#effafa 100%);box-shadow:0 14px 26px rgba(8,127,140,.14);} 
+button[kind="primary"] {background:linear-gradient(135deg,#0a8d98 0%,#0f6f86 100%)!important;border-color:#0a8d98!important;color:white!important;box-shadow:0 12px 24px rgba(8,127,140,.24)!important;}
 button[kind="primary"] p {color:white!important;}
-button[kind="primary"]:hover {background:#076b76!important;}
+button[kind="primary"]:hover {background:linear-gradient(135deg,#0c9ca6 0%,#0b6c82 100%)!important;transform:translateY(-2px);box-shadow:0 16px 28px rgba(8,127,140,.30)!important;}
 button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 [data-testid="stTextInput"] [data-baseweb="input"], [data-testid="stNumberInput"] [data-baseweb="input"], [data-testid="stDateInput"] [data-baseweb="input"], [data-baseweb="select"] > div, [data-testid="stTextArea"] textarea {border-radius:10px;background:white;color:var(--text);border-color:var(--border-strong);}
 [data-testid="stWidgetLabel"] p {font-size:12px;font-weight:600;color:#52647b;}
@@ -83,6 +91,7 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 [data-testid="stAlert"] {border-radius:12px;}
 [data-testid="stMetric"] {background:white;border:1px solid var(--border);border-radius:14px;padding:16px;}
 @media(max-width:700px) {.block-container {width:100% !important; padding:1rem !important;} .hero {padding:26px 22px;} .hero h1 {font-size:26px;} .brand-name {font-size:12px;} .module-card {min-height:0;} .kpi-card {min-height:125px;} }
+@media(max-width:700px) {[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card):hover {transform:none;}}
 @media(prefers-reduced-motion:reduce) {* {transition:none!important;}}
 </style>
 """.replace("__COMPANY_LOGO__", COMPANY_LOGO_URI), unsafe_allow_html=True)
@@ -345,12 +354,12 @@ try:
     # Full catalogue of sections, keyed by the same names used below for routing.
     # Each entry: (icon, label, visible_to_video, visible_to_others)
     _NAV_ITEMS = [
-        ("upload", "📂", "Buying Upload",   False, True),
-        ("stock",  "📦", "Buying Stock",    False, True),
-        ("lot",    "🏷", "Lot Generated",   True,  True),
-        ("return", "🔴", "Return Stones",   False, True),
-        ("export", "✈️", "Export Stones",   False, True),
-        ("admin",  "⚙️", "Admin",           False, is_admin),
+        ("upload", "↥", "Buying Upload",   False, True),
+        ("stock",  "◈", "Buying Stock",    False, True),
+        ("lot",    "⌘", "Lot Generated",   True,  True),
+        ("return", "↺", "Return Stones",   False, True),
+        ("export", "➜", "Export Stones",   False, True),
+        ("admin",  "⚙", "Admin",           False, is_admin),
     ]
 
     def _visible_nav_items():
@@ -430,12 +439,12 @@ try:
 
         st.markdown(_section_header("◇", "Your workspace"), unsafe_allow_html=True)
         _module_details = {
-            "upload": ("#e6f5f4", "Import buying files and review incoming stones."),
-            "stock": ("#eaf0ff", "Explore inventory, filter stones and review values."),
-            "lot": ("#f2edff", "Create lots and follow your processing workflow."),
-            "return": ("#fff0ed", "Manage returned stones and review return records."),
-            "export": ("#e6f4fc", "Prepare shipments and manage exported stones."),
-            "admin": ("#fff5de", "Manage users, access and shape mappings."),
+            "upload": {"tint":"#eef8f3", "desc":"Import buying files and review incoming stones.", "icon":"⤴", "icon_bg":"#e4f5ea", "icon_color":"#1e7a46"},
+            "stock": {"tint":"#eef4ff", "desc":"Explore inventory, filter stones and review values.", "icon":"⬢", "icon_bg":"#e5eeff", "icon_color":"#315ea8"},
+            "lot": {"tint":"#f4efff", "desc":"Create lots and follow your processing workflow.", "icon":"✦", "icon_bg":"#ece3ff", "icon_color":"#6d43c6"},
+            "return": {"tint":"#fff2ef", "desc":"Manage returned stones and review return records.", "icon":"↩", "icon_bg":"#ffe2db", "icon_color":"#d6523c"},
+            "export": {"tint":"#eef8ff", "desc":"Prepare shipments and manage exported stones.", "icon":"➤", "icon_bg":"#e1f1ff", "icon_color":"#1f7db5"},
+            "admin": {"tint":"#fff8e9", "desc":"Manage users, access and shape mappings.", "icon":"✧", "icon_bg":"#fff0c8", "icon_color":"#a06a00"},
         }
         _cards_per_row = 4
         for _row_start in range(0, len(_filtered), _cards_per_row):
@@ -444,13 +453,14 @@ try:
             for _i, _col in enumerate(_cols):
                 if _i < len(_row_items):
                     _key, _icon, _label = _row_items[_i]
+                    _meta = _module_details[_key]
                     with _col:
                         with st.container(border=True):
                             st.markdown(
-                                f'<div class="module-card" style="--tint:{_module_details[_key][0]}">'
-                                f'<div class="module-icon">{_icon}</div>'
+                                f'<div class="module-card" style="--tint:{_meta["tint"]}; --icon-bg:{_meta["icon_bg"]}; --icon-color:{_meta["icon_color"]};">'
+                                f'<div class="module-icon"><span class="glyph">{_meta["icon"]}</span></div>'
                                 f'<p class="module-title">{_label}</p>'
-                                f'<p class="module-copy">{_module_details[_key][1]}</p></div>',
+                                f'<p class="module-copy">{_meta["desc"]}</p></div>',
                                 unsafe_allow_html=True,
                             )
                             if st.button(f"Open {_label} →", key=f"nav_card_{_key}", use_container_width=True):
