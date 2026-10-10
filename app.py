@@ -1,0 +1,2381 @@
+import streamlit as st
+import pandas as pd
+from db import connect, initialize, read_frame, hash_pw, verify_pw, fingerprint
+import os
+from zoneinfo import ZoneInfo
+from datetime import datetime as _datetime, timedelta
+
+class datetime(_datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return super().now(tz or ZoneInfo("Asia/Kolkata"))
+
+# ── PAGE CONFIG (must be first st call) ───────────────────────────────────
+st.set_page_config(page_title="BRIGHT TRADING INDIA LLP ERP", layout="wide", initial_sidebar_state="collapsed")
+
+# ── MINIMAL LIGHT THEME (monochrome) ──────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+    --bg: #ffffff;
+    --surface: #fafafa;
+    --border: #e5e5e5;
+    --border-strong: #d4d4d4;
+    --text: #171717;
+    --muted: #737373;
+    --accent: #171717;
+}
+
+html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"],
+[data-testid="stHeader"], [data-testid="block-container"], .block-container {
+    background-color: var(--bg) !important;
+    color: var(--text) !important;
+    font-family: 'Inter', -apple-system, sans-serif !important;
+}
+[data-testid="stSidebar"] { background-color: var(--surface) !important; }
+[data-testid="stHeader"]  { background-color: transparent !important; }
+.block-container { padding-top: 2rem !important; max-width: 1280px; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* KPI cards: flat, number + label only */
+.kpi-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    text-align: left;
+}
+.kpi-icon  { display: none; }
+.kpi-label { font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+.kpi-value { font-size: 24px; font-weight: 600; color: var(--text); margin: 0; letter-spacing: -0.01em; }
+.kpi-sub   { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+.kpi-up    { color: #15803d; font-weight: 600; }
+.kpi-down  { color: #b91c1c; font-weight: 600; }
+
+/* Section header: title + one hairline */
+.section-header { display: flex; align-items: center; margin-bottom: 8px; }
+.section-header .icon  { display: none; }
+.section-header .title { font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+.section-divider { height: 1px; background: var(--border); margin-bottom: 20px; }
+
+/* Tables and charts */
+[data-testid="stPlotlyChart"], [data-testid="stDataFrame"] {
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+}
+
+/* Buttons: outline by default, solid black for primary */
+.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] button {
+    border-radius: 6px !important;
+    border: 1px solid var(--border-strong) !important;
+    background: var(--bg) !important;
+    color: var(--text) !important;
+    box-shadow: none !important;
+    font-weight: 500 !important;
+    transition: border-color 0.15s ease, background 0.15s ease !important;
+}
+.stButton button:hover, .stDownloadButton button:hover, [data-testid="stFormSubmitButton"] button:hover {
+    border-color: var(--accent) !important;
+    background: var(--surface) !important;
+    color: var(--text) !important;
+}
+.stButton button[kind="primary"], .stDownloadButton button[kind="primary"],
+[data-testid="stFormSubmitButton"] button[kind="primary"] {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+}
+.stButton button[kind="primary"] p, .stDownloadButton button[kind="primary"] p,
+[data-testid="stFormSubmitButton"] button[kind="primary"] p { color: #ffffff !important; }
+.stButton button[kind="primary"]:hover, .stDownloadButton button[kind="primary"]:hover,
+[data-testid="stFormSubmitButton"] button[kind="primary"]:hover {
+    background: #404040 !important;
+    border-color: #404040 !important;
+    color: #ffffff !important;
+}
+.stButton button:focus-visible, .stDownloadButton button:focus-visible {
+    outline: 2px solid var(--accent) !important;
+    outline-offset: 2px;
+}
+
+/* Inputs */
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea,
+[data-testid="stDateInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+    border-radius: 6px !important;
+    border: 1px solid var(--border-strong) !important;
+    background: var(--bg) !important;
+    color: var(--text) !important;
+    box-shadow: none !important;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stTextArea"] textarea:focus,
+[data-testid="stDateInput"] input:focus,
+[data-testid="stNumberInput"] input:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px var(--accent) !important;
+}
+
+/* Tabs: text with an underline on the active one */
+[data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid var(--border); }
+[data-baseweb="tab"] {
+    background: transparent !important;
+    border-radius: 0 !important;
+    color: var(--muted) !important;
+    padding-left: 0 !important; padding-right: 0 !important;
+}
+[aria-selected="true"][data-baseweb="tab"] {
+    color: var(--text) !important;
+    background: transparent !important;
+    border-bottom: 2px solid var(--accent) !important;
+}
+[data-baseweb="tab-highlight"] { background: var(--accent) !important; }
+
+/* Alerts and expanders */
+[data-testid="stAlert"] { border-radius: 6px !important; }
+[data-testid="stExpander"] { border: 1px solid var(--border) !important; border-radius: 8px !important; }
+</style>
+""", unsafe_allow_html=True)
+
+# ── LOAD CSS ──────────────────────────────────────────────────────────────
+try:
+    with open("style.css", encoding="utf-8") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+except FileNotFoundError:
+    pass
+
+# ── BORDERED CONTAINER (st.container(border=True)) ────────────────────────
+st.markdown("""
+<style>
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1px solid #e5e5e5 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ── SHARED UI HELPERS ───────────────────────────────────────────────────────
+def _section_header(icon, title):
+    """Big page-section title with icon and gradient divider (used across all tabs)."""
+    return (
+        f'<div class="section-header"><span class="icon">{icon}</span>'
+        f'<span class="title">{title}</span></div>'
+        f'<div class="section-divider"></div>'
+    )
+
+def _label(text, margin_bottom=8):
+    """Small muted label used above filters / sub-sections."""
+    return (
+        f'<p style="font-size:12px;color:#737373;'
+        f'margin-bottom:{margin_bottom}px;">{text}</p>'
+    )
+
+# ── DATABASE ──────────────────────────────────────────────────────────────
+def setting(name):
+    value = os.environ.get(name)
+    if value:
+        return value
+    try:
+        return st.secrets.get(name, "")
+    except FileNotFoundError:
+        return ""
+
+url = setting("DATABASE_URL")
+if not url:
+    st.info("Set DATABASE_URL in Streamlit Secrets to connect to Neon. See README.md.")
+    st.stop()
+
+@st.cache_resource(show_spinner=False)
+def prepare_database(database_url, admin_username, admin_password):
+    initialize(database_url, admin_username, admin_password)
+    return True
+
+try:
+    prepare_database(url, setting("BOOTSTRAP_ADMIN_USERNAME") or "admin", setting("BOOTSTRAP_ADMIN_PASSWORD"))
+    conn = connect(url)
+except Exception:
+    st.error("Database setup/connection failed. Check Neon connection details and bootstrap password (minimum 12 characters) in Secrets.")
+    st.stop()
+try:
+    cursor = conn.cursor()
+
+    def check_login(username: str, password: str):
+        cursor.execute("SELECT password, role FROM users WHERE username=?", (username,))
+        row = cursor.fetchone()
+        if not row or password == "admin123" or not verify_pw(password, row[0]):
+            return None
+        if not row[0].startswith("pbkdf2_sha256$"):
+            cursor.execute("UPDATE users SET password=? WHERE username=?", (hash_pw(password), username))
+            conn.commit()
+        return row[1]
+
+    def login_screen():
+        _, col, _ = st.columns([1, 1.3, 1])
+        with col:
+            st.markdown('<div style="height:64px;"></div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown(
+                    '<div style="text-align:center;padding:10px 4px 22px;">'
+                    '<p style="font-size:20px;font-weight:600;color:#171717;margin:0 0 6px;">BRIGHT TRADING INDIA LLP</p>'
+                    '<p style="font-size:13px;color:#737373;margin:0;">LGD Live Stock ERP &middot; Sign in to continue</p>'
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+                username = st.text_input("USERNAME", key="login_user", placeholder="Enter username")
+                password = st.text_input("PASSWORD", key="login_pass", placeholder="Enter password", type="password")
+                st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+                if st.button("🔐 Sign In", key="login_btn", use_container_width=True):
+                    role = check_login(username.strip(), password.strip())
+                    if role:
+                        st.session_state["logged_in"] = True
+                        st.session_state["username"]   = username.strip()
+                        st.session_state["role"]        = role
+                        _save_session_to_params(username.strip(), role)
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid username or password")
+
+                st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
+                with st.expander("🔑 Forgot / Reset Password"):
+                    fp_uname     = st.text_input("USERNAME", key="fp_uname", placeholder="Your username")
+                    fp_old_pass  = st.text_input("CURRENT PASSWORD", key="fp_old_pass", placeholder="Enter current password", type="password")
+                    fp_new_pass  = st.text_input("NEW PASSWORD", key="fp_new_pass", placeholder="Enter new password", type="password")
+                    fp_new_pass2 = st.text_input("CONFIRM NEW PASSWORD", key="fp_new_pass2", placeholder="Re-enter new password", type="password")
+                    if st.button("🔁 Reset My Password", key="fp_reset_btn", use_container_width=True):
+                        if not fp_uname.strip() or not fp_old_pass.strip() or not fp_new_pass.strip() or not fp_new_pass2.strip():
+                            st.warning("Please fill in all fields.")
+                        elif fp_new_pass != fp_new_pass2:
+                            st.warning("New password and confirm password do not match.")
+                        elif len(fp_new_pass.strip()) < 12:
+                            st.warning("New password should be at least 12 characters.")
+                        else:
+                            role_check = check_login(fp_uname.strip(), fp_old_pass.strip())
+                            if not role_check:
+                                st.error("❌ Username or current password is incorrect.")
+                            else:
+                                cursor.execute(
+                                    "UPDATE users SET password=? WHERE username=?",
+                                    (hash_pw(fp_new_pass.strip()), fp_uname.strip()),
+                                )
+                                conn.commit()
+                                st.success("✅ Password updated successfully. Please sign in with your new password.")
+
+    # Login stays in server-side session state; never restore authentication from a URL.
+    SESSION_EXPIRY_HOURS = 24
+
+    def _save_session_to_params(username, role):
+        cursor.execute("SELECT password FROM users WHERE username=?", (username,))
+        st.session_state["credential_fingerprint"] = fingerprint(cursor.fetchone()[0])
+        st.session_state["login_time"] = datetime.now().timestamp()
+        st.query_params.clear()
+
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = False
+        st.session_state["username"]  = ""
+        st.session_state["role"]      = ""
+
+    if st.session_state["logged_in"]:
+        cursor.execute("SELECT password, role FROM users WHERE username=?", (st.session_state["username"],))
+        user = cursor.fetchone()
+        expired = datetime.now().timestamp() - st.session_state.get("login_time", 0) > 24 * 3600
+        if not user or expired or fingerprint(user[0]) != st.session_state.get("credential_fingerprint"):
+            st.session_state.clear()
+            st.query_params.clear()
+            st.rerun()
+        st.session_state["role"] = user[1]
+
+    if not st.session_state["logged_in"]:
+        login_screen()
+        st.stop()
+
+    # ── HEADER BANNER ──────────────────────────────────────────────────────────
+    is_admin = st.session_state["role"] == "admin"
+    is_video = st.session_state["role"] == "video"
+
+    if "page" not in st.session_state:
+        st.session_state["page"] = "home"
+
+    # Full catalogue of sections, keyed by the same names used below for routing.
+    # Each entry: (icon, label, visible_to_video, visible_to_others)
+    _NAV_ITEMS = [
+        ("upload", "📂", "Buying Upload",   False, True),
+        ("stock",  "📦", "Buying Stock",    False, True),
+        ("lot",    "🏷", "Lot Generated",   True,  True),
+        ("return", "🔴", "Return Stones",   False, True),
+        ("export", "✈️", "Export Stones",   False, True),
+        ("admin",  "⚙️", "Admin",           False, is_admin),
+    ]
+
+    def _visible_nav_items():
+        items = []
+        for key, icon, label, vis_video, vis_other in _NAV_ITEMS:
+            if is_video and vis_video:
+                items.append((key, icon, label))
+            elif not is_video and vis_other:
+                items.append((key, icon, label))
+        return items
+
+    _nav = _visible_nav_items()
+    _page_labels = {key: (icon, label) for key, icon, label in _nav}
+
+    h_col1, h_col2 = st.columns([5, 1.4])
+    with h_col1:
+        if st.session_state["page"] == "home":
+            _crumb = "Home"
+        else:
+            _icon, _lbl = _page_labels.get(st.session_state["page"], ("💎", "Home"))
+            _crumb = f"Home / {_lbl}"
+        st.markdown(
+            '<div style="border-bottom:1px solid #e5e5e5;height:64px;display:flex;'
+            'flex-direction:column;justify-content:center;">'
+            '<p style="font-size:16px;font-weight:600;color:#171717;margin:0;">BRIGHT TRADING INDIA LLP</p>'
+            f'<p style="font-size:12px;color:#737373;margin:2px 0 0;">{_crumb}</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    with h_col2:
+        with st.container(border=True):
+            st.markdown(
+                f'<p style="font-size:13px;color:#171717;margin:0 0 2px;font-weight:500;">{st.session_state["username"]}</p>'
+                f'<p style="font-size:12px;color:#737373;margin:0 0 8px;">{st.session_state["role"]}</p>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Sign Out", key="logout_btn", use_container_width=True):
+                st.session_state["logged_in"] = False
+                st.session_state["username"]  = ""
+                st.session_state["role"]      = ""
+                st.query_params.clear()
+                st.rerun()
+
+    st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
+
+    # ── BACK-TO-HOME BAR (shown on every page except Home) ────────────────────
+    if st.session_state["page"] != "home":
+        if st.button("← Back to Home", key="back_home_btn"):
+            st.session_state["page"] = "home"
+            st.rerun()
+        st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+
+    # ── HOME GRID (Lattice-style card launcher) ────────────────────────────────
+    if st.session_state["page"] == "home":
+        st.markdown(
+            '<div style="text-align:center;padding:24px 0 28px;">'
+            '<p style="font-size:22px;font-weight:600;color:#171717;margin:0 0 4px;">BRIGHT TRADING INDIA LLP</p>'
+            '<p style="font-size:13px;color:#737373;margin:0;">Live Stock ERP</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        _search = st.text_input(
+            "Search for Actions",
+            key="home_search",
+            placeholder="Search actions",
+            label_visibility="collapsed",
+        )
+
+        st.markdown('<div style="height:24px;"></div>', unsafe_allow_html=True)
+
+        _filtered = [
+            (key, icon, label) for key, icon, label in _nav
+            if _search.strip().lower() in label.lower()
+        ] if _search.strip() else _nav
+
+        _cards_per_row = 4
+        for _row_start in range(0, len(_filtered), _cards_per_row):
+            _row_items = _filtered[_row_start:_row_start + _cards_per_row]
+            _cols = st.columns(_cards_per_row)
+            for _i, _col in enumerate(_cols):
+                if _i < len(_row_items):
+                    _key, _icon, _label = _row_items[_i]
+                    with _col:
+                        with st.container(border=True):
+                            st.markdown(
+                                f'<div style="padding:10px 4px 6px;">'
+                                f'<p style="font-size:14px;color:#171717;font-weight:500;margin:0;">{_label}</p>'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+                            if st.button("Open", key=f"nav_card_{_key}", use_container_width=True):
+                                st.session_state["page"] = _key
+                                st.rerun()
+        if not _filtered:
+            st.info("No matching actions found.")
+        st.stop()
+
+    # ── ROUTING FLAGS (replace the old st.tabs() tab objects) ─────────────────
+    _page = st.session_state["page"]
+    tab1        = _page == "upload"
+    tab2        = _page == "stock"
+    tab3        = _page == "lot"
+    tab4        = _page == "return"
+    tab_export  = _page == "export"
+    tab5        = _page == "admin"
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TAB 1 — BUYING FILE UPLOAD
+    # ══════════════════════════════════════════════════════════════════════════
+    if not is_video:
+        if tab1:
+            st.subheader("📂 Upload Buying File")
+
+            uploaded_file = st.file_uploader(
+                "Upload Buying Excel File (.xlsx)",
+                type=["xlsx"],
+                key="buying_upload",
+            )
+
+            if uploaded_file:
+                df = pd.read_excel(uploaded_file)
+
+                # Normalise column names
+                df.columns = df.columns.str.strip().str.upper()
+
+                # Coerce numeric columns
+                for col in ["CTS", "PER CARAT", "BANK RATE"]:
+                    if col in df.columns:
+                        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+                # ── AMT ab file se nahi, PER CARAT * CTS se calculate hoga ──────
+                if "CTS" in df.columns and "PER CARAT" in df.columns:
+                    df["AMT"] = (
+                        pd.to_numeric(df["CTS"], errors="coerce").fillna(0)
+                        * pd.to_numeric(df["PER CARAT"], errors="coerce").fillna(0)
+                    )
+
+                # ── INR P/C aur INR TOTAL upload time pe hi calculate ───────────
+                if "BANK RATE" in df.columns:
+                    _br = pd.to_numeric(df["BANK RATE"], errors="coerce").fillna(0)
+                    df["INR_PC"]    = round(pd.to_numeric(df.get("PER CARAT", 0), errors="coerce").fillna(0) * _br, 2)
+                    df["INR_TOTAL"] = round(pd.to_numeric(df.get("AMT", 0),       errors="coerce").fillna(0) * _br, 2)
+                else:
+                    df["INR_PC"]    = 0
+                    df["INR_TOTAL"] = 0
+
+                # Date column ab jaisi upload hui waisi hi rakhni hai (no reformatting)
+                if "DATE" in df.columns:
+                    def _keep_date_as_is(v):
+                        if pd.isna(v):
+                            return ""
+                        if hasattr(v, "strftime"):
+                            return v.strftime("%d-%m-%Y")
+                        return str(v).strip()
+                    df["DATE"] = df["DATE"].apply(_keep_date_as_is)
+
+                df = df.fillna("")
+
+                if "LOCATION" not in df.columns:
+                    df["LOCATION"] = ""
+
+                # ── Uppercase: in columns ko upper case karna he ────────────────
+                for _uc in ["BUYER NAME", "PARTY NAME", "LAB", "TYPE", "SHAPE", "COL", "CLA", "LOCATION", "REMARK"]:
+                    if _uc in df.columns:
+                        df[_uc] = df[_uc].astype(str).str.strip().str.upper()
+
+                # ── Apply shape mappings from DB ───────────────────────────────
+                _shape_maps = read_frame(
+                    "SELECT alias, mapped_to FROM shape_mappings", conn
+                )
+                _shape_map_dict = {
+                    str(r["alias"]).strip().upper(): str(r["mapped_to"]).strip().upper()
+                    for _, r in _shape_maps.iterrows()
+                }
+                if "SHAPE" in df.columns and _shape_map_dict:
+                    df["SHAPE"] = df["SHAPE"].apply(
+                        lambda s: _shape_map_dict.get(s, s)
+                    )
+
+                st.subheader("📄 File Preview (first 20 rows)")
+                st.dataframe(df.head(20), use_container_width=True)
+
+                REQUIRED = [
+                    "BUYER NAME", "DATE", "PARTY NAME", "REPORT", "LAB",
+                    "TYPE", "SHAPE", "CTS", "COL", "CLA",
+                    "PER CARAT", "BANK RATE", "REMARK",
+                ]
+                missing = [c for c in REQUIRED if c not in df.columns]
+
+                if missing:
+                    st.error(f"❌ Missing columns: {missing}")
+                else:
+                    if st.button("🚀 Upload to SQL", key="upload_sql_btn"):
+                        inserted = reactivated = skipped = 0
+                        lot_already_certs = []   # certificates that already have a lot
+                        upload_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        progress = st.progress(0)
+                        total = len(df)
+
+                        for i, row in df.iterrows():
+                            report_no = str(row["REPORT"]).strip()
+
+                            cursor.execute(
+                                "SELECT report_no, stock_status, lot_no FROM buying_stock WHERE report_no = ?",
+                                (report_no,),
+                            )
+                            existing = cursor.fetchone()
+
+                            if existing:
+                                existing_status = existing[1]
+                                old_lot_no = existing[2]
+                                # Determine new status:
+                                # - If was RETURN and had a lot → restore to LOT
+                                # - If was RETURN and no lot → restore to LIVE
+                                # - If was LIVE or LOT → keep existing status (just update data)
+                                if existing_status == "RETURN":
+                                    new_status = "LOT" if old_lot_no else "LIVE"
+                                    clear_return = True
+                                else:
+                                    new_status = existing_status  # keep LIVE or LOT as-is
+                                    clear_return = False
+                                # Track certificates that already have a lot generated
+                                if existing_status == "LOT" and old_lot_no:
+                                    lot_already_certs.append(f"{report_no} (Lot: {old_lot_no})")
+
+                                cursor.execute(
+                                    """
+                                    UPDATE buying_stock SET
+                                        buyer_name=?, buying_date=?, party_name=?, lab=?,
+                                        diamond_type=?, shape=?, cts=?, color=?, clarity=?,
+                                        per_carat=?, amount=?,
+                                        bank_rate=?,
+                                        inr_pc=?, inr_total=?,
+                                        location=?, remark=?,
+                                        stock_status=?,
+                                        return_date=CASE WHEN ? THEN NULL ELSE return_date END,
+                                        upload_time=?
+                                    WHERE report_no=?
+                                    """,
+                                    (
+                                        str(row["BUYER NAME"]), str(row["DATE"]), str(row["PARTY NAME"]),
+                                        str(row["LAB"]), str(row["TYPE"]), str(row["SHAPE"]),
+                                        row["CTS"], str(row["COL"]), str(row["CLA"]),
+                                        row["PER CARAT"], row["AMT"],
+                                        row["BANK RATE"],
+                                        row["INR_PC"], row["INR_TOTAL"],
+                                        str(row["LOCATION"]), str(row["REMARK"]),
+                                        new_status,
+                                        bool(clear_return),
+                                        upload_time, report_no,
+                                    ),
+                                )
+                                reactivated += 1
+                            else:
+                                cursor.execute(
+                                    """
+                                    INSERT INTO buying_stock (
+                                        buyer_name, buying_date, party_name, report_no, lab,
+                                        diamond_type, shape, cts, color, clarity,
+                                        per_carat, amount, bank_rate,
+                                        inr_pc, inr_total,
+                                        location, remark, stock_status,
+                                        lot_no, lot_date, return_date, upload_time
+                                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                                    """,
+                                    (
+                                        str(row["BUYER NAME"]), str(row["DATE"]), str(row["PARTY NAME"]),
+                                        report_no, str(row["LAB"]),
+                                        str(row["TYPE"]), str(row["SHAPE"]),
+                                        row["CTS"], str(row["COL"]), str(row["CLA"]),
+                                        row["PER CARAT"], row["AMT"], row["BANK RATE"],
+                                        row["INR_PC"], row["INR_TOTAL"],
+                                        str(row["LOCATION"]), str(row["REMARK"]), "LIVE",
+                                        None, None, None, upload_time,
+                                    ),
+                                )
+                                inserted += 1
+
+                            progress.progress((i + 1) / total)
+
+                        conn.commit()
+                        st.success(f"✅ {inserted} new stones uploaded")
+                        if reactivated:
+                            st.info(f"♻️ {reactivated} existing stones updated (data overwritten)")
+                        if lot_already_certs:
+                            st.markdown(
+                                f'<div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;'
+                                f'border-radius:8px;padding:14px 18px;margin-top:10px;">'
+                                f'<p style="color:#991b1b;font-size:13px;font-weight:700;margin:0 0 8px;">🚫 Already Lot Generated — {len(lot_already_certs)} Certificate(s)</p>'
+                                f'<p style="color:#b91c1c;font-size:12px;margin:0 0 6px;">A lot has already been generated for the following certificates:</p>'
+                                f'<ul style="color:#991b1b;font-size:12px;margin:4px 0 0 16px;padding:0;line-height:1.9;">'
+                                + "".join(f"<li>{c}</li>" for c in lot_already_certs) +
+                                f'</ul></div>',
+                                unsafe_allow_html=True,
+                            )
+
+        # ══════════════════════════════════════════════════════════════════════════
+        # TAB 2 — Buying Stock
+        # ══════════════════════════════════════════════════════════════════════════
+    if not is_video:
+        if tab2:
+            # Header
+            st.markdown(_section_header("📦", "Buying Stock"), unsafe_allow_html=True)
+
+            live_df = read_frame(
+                """
+                SELECT buyer_name, buying_date, party_name, report_no, lab,
+                       diamond_type, shape, cts, color, clarity,
+                       per_carat, amount, bank_rate, location, remark,
+                       inr_pc, inr_total, stock_status
+                FROM buying_stock
+                WHERE stock_status IN ('LIVE', 'LOT')
+                  AND (exported_at IS NULL OR exported_at = '')
+                ORDER BY id DESC
+                """,
+                conn,
+            )
+
+            # Human-readable status label
+            live_df["status_label"] = live_df["stock_status"].map(
+                {"LIVE": "Not Processed", "LOT": "Lot Generated"}
+            ).fillna(live_df["stock_status"])
+
+            # Filters — 6 columns including Status
+            st.markdown(_label("🔎  Filters", margin_bottom=6), unsafe_allow_html=True)
+            fc1, fc2, fc3, fc4, fc5, fc6 = st.columns(6)
+            report_filter = fc1.text_input("REPORT NO",  key="report_filter",  placeholder="LG123…")
+            party_filter  = fc2.text_input("PARTY",       key="party_filter",   placeholder="Party name…")
+            shape_filter  = fc3.text_input("SHAPE",       key="shape_filter",   placeholder="ROUND, OVAL…")
+            date_filter_d = fc4.date_input("DATE", value=None, key="date_filter", format="DD-MM-YYYY")
+            date_filter   = date_filter_d.strftime("%d-%m-%Y") if date_filter_d else ""
+            remark_filter = fc5.text_input("REMARK",      key="remark_filter",  placeholder="Any remark…")
+            status_filter = fc6.selectbox(
+                "STATUS", key="status_filter",
+                options=["All", "Not Processed", "Lot Generated"],
+            )
+
+            # Apply filters
+            fdf = live_df.copy()
+            for val, col in [
+                (report_filter, "report_no"),
+                (party_filter,  "party_name"),
+                (shape_filter,  "shape"),
+                (date_filter,   "buying_date"),
+                (remark_filter, "remark"),
+            ]:
+                if val:
+                    fdf = fdf[fdf[col].astype(str).str.contains(val, case=False, na=False)]
+            if status_filter != "All":
+                fdf = fdf[fdf["status_label"] == status_filter]
+
+            # Pre-filter counts (always from full live_df)
+            live_count_bs = int((live_df["stock_status"] == "LIVE").sum())
+            lot_count_bs  = int((live_df["stock_status"] == "LOT").sum())
+
+            # Metrics — styled KPI cards
+            total_stones  = len(fdf)
+            total_cts     = round(pd.to_numeric(fdf["cts"],      errors="coerce").sum(), 2) if not fdf.empty else 0
+            total_amt     = round(pd.to_numeric(fdf["amount"],   errors="coerce").sum(), 2) if not fdf.empty else 0
+            total_inr     = round(
+                (pd.to_numeric(fdf["amount"],   errors="coerce") *
+                 pd.to_numeric(fdf["bank_rate"], errors="coerce").fillna(0)).sum(), 2
+            ) if not fdf.empty else 0
+
+            st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
+            km1, km2, km3, km4, km5, km6 = st.columns(6)
+            km1.markdown(
+                f'<div class="kpi-card" style="--accent:#171717;">'
+                f'<span class="kpi-icon">💎</span>'
+                f'<p class="kpi-label">TOTAL STONES</p>'
+                f'<p class="kpi-value">{total_stones:,}</p>'
+                f'<p class="kpi-sub">in buying stock</p>'
+                f'</div>', unsafe_allow_html=True,
+            )
+            km2.markdown(
+                f'<div class="kpi-card" style="--accent:#3b82f6;">'
+                f'<span class="kpi-icon">📦</span>'
+                f'<p class="kpi-label">TOTAL CARATS</p>'
+                f'<p class="kpi-value">{total_cts:,}</p>'
+                f'<p class="kpi-sub">total weight</p>'
+                f'</div>', unsafe_allow_html=True,
+            )
+            km3.markdown(
+                f'<div class="kpi-card" style="--accent:#22c55e;">'
+                f'<span class="kpi-icon">💵</span>'
+                f'<p class="kpi-label">TOTAL AMT USD</p>'
+                f'<p class="kpi-value">${total_amt:,.0f}</p>'
+                f'<p class="kpi-sub">buying value</p>'
+                f'</div>', unsafe_allow_html=True,
+            )
+            km4.markdown(
+                f'<div class="kpi-card" style="--accent:#a855f7;">'
+                f'<span class="kpi-icon">🇮🇳</span>'
+                f'<p class="kpi-label">TOTAL AMT INR</p>'
+                f'<p class="kpi-value">₹{total_inr:,.0f}</p>'
+                f'<p class="kpi-sub">converted value</p>'
+                f'</div>', unsafe_allow_html=True,
+            )
+            km5.markdown(
+                f'<div class="kpi-card" style="--accent:#8b5cf6;">'
+                f'<span class="kpi-icon">🏷️</span>'
+                f'<p class="kpi-label">LOT GENERATED</p>'
+                f'<p class="kpi-value">{lot_count_bs:,}</p>'
+                f'<p class="kpi-sub">Stones sent for lot</p>'
+                f'</div>', unsafe_allow_html=True,
+            )
+            km6.markdown(
+                f'<div class="kpi-card" style="--accent:#f59e0b;">'
+                f'<span class="kpi-icon">⏳</span>'
+                f'<p class="kpi-label">NOT PROCESSED</p>'
+                f'<p class="kpi-value">{live_count_bs:,}</p>'
+                f'<p class="kpi-sub">Stones pending lot</p>'
+                f'</div>', unsafe_allow_html=True,
+            )
+
+            st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
+
+            # Computed INR columns — use DB stored value if available, else calculate
+            display_df = fdf.copy()
+            pc  = pd.to_numeric(display_df["per_carat"], errors="coerce").fillna(0)
+            amt = pd.to_numeric(display_df["amount"],    errors="coerce").fillna(0)
+            br  = pd.to_numeric(display_df["bank_rate"], errors="coerce").fillna(0)
+            db_inr_pc    = pd.to_numeric(display_df.get("inr_pc",    pd.Series()), errors="coerce")
+            db_inr_total = pd.to_numeric(display_df.get("inr_total", pd.Series()), errors="coerce")
+            display_df["INR P/C"]   = db_inr_pc.where(db_inr_pc.notna()   & (db_inr_pc   != 0), round(pc  * br, 2))
+            display_df["INR TOTAL"] = db_inr_total.where(db_inr_total.notna() & (db_inr_total != 0), round(amt * br, 2))
+
+            display_df = display_df.rename(columns={
+                "buyer_name":    "BUYER",
+                "buying_date":   "DATE",
+                "party_name":    "PARTY",
+                "report_no":     "REPORT NO",
+                "lab":           "LAB",
+                "diamond_type":  "TYPE",
+                "shape":         "SHAPE",
+                "cts":           "CTS",
+                "color":         "COLOR",
+                "clarity":       "CLARITY",
+                "per_carat":     "$P/CT",
+                "amount":        "AMT USD",
+                "bank_rate":     "BANK RATE",
+                "location":      "LOCATION",
+                "remark":        "REMARK",
+                "status_label":  "STATUS",
+            })
+            display_df.drop(["inr_pc", "inr_total", "stock_status"], axis=1, inplace=True, errors="ignore")
+
+            # ── Exact column order as requested ───────────────────────────────
+            _bs_col_order = [
+                "BUYER", "DATE", "PARTY", "REPORT NO", "LAB", "TYPE", "SHAPE",
+                "CTS", "COLOR", "CLARITY", "$P/CT", "AMT USD", "INR P/C",
+                "INR TOTAL", "BANK RATE", "LOCATION", "REMARK", "STATUS",
+            ]
+            display_df = display_df[[c for c in _bs_col_order if c in display_df.columns]]
+
+            # ── DATE ko real date dtype banao taaki sorting text ki jagah ──────
+            # chronological ho (column header pe click karke ascending/descending)
+            if "DATE" in display_df.columns:
+                display_df["DATE"] = pd.to_datetime(
+                    display_df["DATE"], format="%d-%m-%Y", errors="coerce"
+                )
+
+            # ── Excel download for filtered Buying Stock table ───────────────────
+            import io as _bs_io
+            _bs_excel_buf = _bs_io.BytesIO()
+            display_df.to_excel(_bs_excel_buf, index=False, engine="openpyxl")
+            _bs_excel_buf.seek(0)
+
+            bs_dl1, bs_dl2 = st.columns([5, 1])
+            bs_dl2.download_button(
+                label="⬇ Excel",
+                data=_bs_excel_buf,
+                file_name=f"Buying_Stock_{datetime.now().strftime('%d%m%Y')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="buying_stock_excel_dl",
+                use_container_width=True,
+            )
+
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                height=620,
+                column_config={
+                    "DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY"),
+                },
+            )
+
+        # ══════════════════════════════════════════════════════════════════════════
+        # TAB 3 — LOT GENERATED
+        # ══════════════════════════════════════════════════════════════════════════
+    if tab3:
+        st.markdown(_section_header("🏷", "Lot Generation"), unsafe_allow_html=True)
+
+        lot_inp1, lot_inp2, lot_inp3 = st.tabs(["📂 Excel Upload", "📋 Input IGI No", "📊 Master Lot Data"])
+
+        # ── shared helper ────────────────────────────────────────────────────────
+        def normalize_cert(cert: str) -> str:
+            """If user pastes a 9-digit number without LG prefix, auto-add LG."""
+            c = cert.strip()
+            if c.isdigit() and len(c) == 9:
+                return "LG" + c
+            return c
+
+        def run_lot_generation(report_list, memo_dict, btn_key_suffix):
+            cursor.execute("SELECT pg_advisory_xact_lock(728190402)")
+            cursor.execute(
+                "SELECT lot_no FROM buying_stock WHERE lot_no IS NOT NULL "
+                "ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC LIMIT 1"
+            )
+            last = cursor.fetchone()
+            try:
+                last_number = int(last[0]) if last else 917967
+            except Exception:
+                last_number = 917967
+
+            generated = skipped = already = 0
+            results = []
+            for raw_report in report_list:
+                report_no = normalize_cert(raw_report)
+
+                # First check: does this certificate exist in buying stock at all?
+                cursor.execute(
+                    "SELECT report_no, lot_no, stock_status FROM buying_stock WHERE report_no=?",
+                    (report_no,),
+                )
+                data = cursor.fetchone()
+
+                if not data:
+                    # Certificate not in buying file at all
+                    skipped += 1
+                    results.append({"REPORT NO": report_no, "STATUS": "❌ Buying not updated — Certificate not found", "LOT NO": ""})
+                elif data[1]:
+                    # Certificate exists but lot already generated
+                    already += 1
+                    results.append({"REPORT NO": report_no, "STATUS": "🚫 Lot already generated", "LOT NO": data[1]})
+                elif data[2] != "LIVE":
+                    # Certificate exists but not in LIVE status (RETURN etc.)
+                    skipped += 1
+                    results.append({"REPORT NO": report_no, "STATUS": f"❌ Not in LIVE status ({data[2]})", "LOT NO": ""})
+                else:
+                    # All good — generate lot
+                    last_number += 1
+                    lot_no   = str(last_number)
+                    lot_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    memo     = memo_dict.get(report_no, memo_dict.get(raw_report, ""))
+                    cursor.execute(
+                        "UPDATE buying_stock SET lot_no=?, lot_date=?, stock_status='LOT', memo_no=? WHERE report_no=?",
+                        (lot_no, lot_date, memo, report_no),
+                    )
+                    generated += 1
+                    results.append({"REPORT NO": report_no, "STATUS": "✅ Generated", "LOT NO": lot_no, "MEMO NO": memo})
+
+            conn.commit()
+
+            # Store results in session_state so they survive rerun
+            st.session_state["lot_gen_results"]   = results
+            st.session_state["lot_gen_generated"] = generated
+            st.session_state["lot_gen_already"]   = already
+            st.session_state["lot_gen_skipped"]   = skipped
+            st.session_state["lot_gen_tab"]       = btn_key_suffix
+            st.rerun()
+
+        def _show_lot_gen_results():
+            """Display lot generation results stored in session_state (survives rerun)."""
+            if "lot_gen_results" not in st.session_state:
+                return
+            generated = st.session_state["lot_gen_generated"]
+            already   = st.session_state["lot_gen_already"]
+            skipped   = st.session_state["lot_gen_skipped"]
+            results   = st.session_state["lot_gen_results"]
+
+            if generated:
+                st.success(f"✅ {generated} lot(s) generated successfully")
+            if already:
+                st.markdown(
+                    f'<div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;'
+                    f'border-radius:8px;padding:14px 18px;margin:8px 0;">'
+                    f'<p style="color:#991b1b;font-size:14px;font-weight:800;margin:0 0 4px;">'
+                    f'🚫 Lot Already Generated — {already} Certificate(s)</p>'
+                    f'<p style="color:#b91c1c;font-size:12px;margin:0;">'
+                    f'A lot has already been generated for these certificates. They have been skipped.</p>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            if skipped:
+                st.markdown(
+                    f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
+                    f'border-radius:8px;padding:14px 18px;margin:8px 0;">'
+                    f'<p style="color:#92400e;font-size:14px;font-weight:800;margin:0 0 4px;">'
+                    f'⚠️ Buying Not Updated — {skipped} Certificate(s)</p>'
+                    f'<p style="color:#92400e;font-size:12px;margin:0;">'
+                    f'These certificates were not found in the buying file. Please upload the buying file first.</p>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            if results:
+                st.dataframe(pd.DataFrame(results), use_container_width=True)
+
+        def _render_today_lots(editor_key, btn_key, dl_key):
+            """Render today's generated lots table with checkboxes for TXT export."""
+            lot_today_df = read_frame(
+                """
+                SELECT * FROM buying_stock
+                WHERE lot_no IS NOT NULL
+                  AND stock_status != 'RETURN'
+                  AND LEFT(lot_date, 10) = TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD')
+                ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC
+                """,
+                conn,
+            )
+
+            st.subheader(f"🏷 Today's Generated Lots — {datetime.now().strftime('%d-%m-%Y')}")
+
+            # ── Report No / Lot No filters ────────────────────────────────────
+            flt1, flt2 = st.columns(2)
+            report_flt_val = flt1.text_input("REPORT NO", key=f"{editor_key}_report_filter", placeholder="LG123…")
+            lot_flt_val    = flt2.text_input("LOT NO",    key=f"{editor_key}_lot_filter",    placeholder="918123…")
+
+            if report_flt_val:
+                lot_today_df = lot_today_df[
+                    lot_today_df["report_no"].astype(str).str.contains(report_flt_val, case=False, na=False)
+                ]
+            if lot_flt_val:
+                lot_today_df = lot_today_df[
+                    lot_today_df["lot_no"].astype(str).str.contains(lot_flt_val, case=False, na=False)
+                ]
+
+            if lot_today_df.empty:
+                st.info(f"ℹ️ No lots generated today ({datetime.now().strftime('%d-%m-%Y')}) matching your filters.")
+                return
+
+            pc  = pd.to_numeric(lot_today_df["per_carat"], errors="coerce").fillna(0)
+            amt = pd.to_numeric(lot_today_df["amount"],    errors="coerce").fillna(0)
+            br  = pd.to_numeric(lot_today_df["bank_rate"], errors="coerce").fillna(0)
+
+            if is_video:
+                pc  = pc  * 0
+                amt = amt * 0
+                br  = br  * 0
+
+            tbl = pd.DataFrame({
+                "SELECT":             False,
+                "CERTIFICATE":        lot_today_df["report_no"].values,
+                "LOT NUMBER":         lot_today_df["lot_no"].values,
+                "MEMO NO":            lot_today_df["memo_no"].values,
+                "BUYER NAME":         lot_today_df["buyer_name"].values,
+                "BUY DATE":           pd.to_datetime(lot_today_df["buying_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
+                "PARTY NAME":         lot_today_df["party_name"].values,
+                "LAB":                lot_today_df["lab"].values,
+                "WT.":                lot_today_df["cts"].values,
+                "SHAPE":              lot_today_df["shape"].values,
+                "ORG.COST":           pc.values,
+                "BANK RATE":          br.values,
+                "TOTAL BUYING PRICE": amt.values,
+                "INR P/C":            round(pc * br, 2).values,
+                "INR TOTAL":          round(amt * br, 2).values,
+                "REMARK":             lot_today_df["remark"].values,
+            }).fillna("")
+
+            st.markdown(
+                '<p style="font-size:12px;color:#737373;margin-bottom:6px;">'
+                '☑ Tick rows → Generate TXT</p>',
+                unsafe_allow_html=True,
+            )
+
+            # ── SELECT ALL toggle ──────────────────────────────────────────────
+            select_all_key = f"select_all_{editor_key}"
+            select_all = st.checkbox("☑ Select All / Deselect All", key=select_all_key)
+            tbl["SELECT"] = select_all
+
+            edited = st.data_editor(
+                tbl,
+                column_config={
+                    "SELECT": st.column_config.CheckboxColumn("✔", default=False, width="small"),
+                },
+                disabled=[c for c in tbl.columns if c != "SELECT"],
+                use_container_width=True,
+                hide_index=True,
+                key=editor_key,
+                height=520,
+            )
+
+            selected = edited[edited["SELECT"] == True]["CERTIFICATE"].tolist()
+
+            # ── Excel download for today's lots (ALL rows included, with a
+            #     SELECTED column reflecting each row's tick state: TRUE/FALSE) ──
+            import io as _io
+            _today_excel_buf = _io.BytesIO()
+            _today_excel_export = edited.copy()
+            _today_excel_export["SELECT"] = _today_excel_export["SELECT"].astype(bool)
+            _today_excel_export = _today_excel_export.rename(columns={"SELECT": "SELECTED"})
+            # Move SELECTED to the front so it's easy to spot
+            _today_excel_export = _today_excel_export[
+                ["SELECTED"] + [c for c in _today_excel_export.columns if c != "SELECTED"]
+            ]
+            _today_excel_export.to_excel(_today_excel_buf, index=False, engine="openpyxl")
+            _today_excel_buf.seek(0)
+
+            bc1, bc2, bc3 = st.columns([3, 1, 1])
+            bc1.markdown(
+                f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
+                f'border-radius:8px;padding:10px 16px;margin-top:6px;display:inline-block;">'
+                f'<span style="font-size:12px;color:#737373;">SELECTED</span>'
+                f'&nbsp;&nbsp;<span style="font-size:20px;font-weight:800;color:#171717;">{len(selected)}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            bc3.download_button(
+                label="⬇ Excel",
+                data=_today_excel_buf,
+                file_name=f"Today_Lots_{datetime.now().strftime('%d%m%Y')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"today_excel_dl_{dl_key}",
+                use_container_width=True,
+            )
+            if bc2.button("📥 Generate TXT", key=btn_key):
+                if not selected:
+                    st.warning("⚠️ Please select at least one row first.")
+                else:
+                    rows = lot_today_df[lot_today_df["report_no"].astype(str).isin(selected)].copy()
+                    rows["per_carat"] = pd.to_numeric(rows["per_carat"], errors="coerce").fillna(0)
+                    rows["bank_rate"] = pd.to_numeric(rows["bank_rate"], errors="coerce").fillna(0)
+                    if is_video:
+                        exp = pd.DataFrame({
+                            "Lot#":         rows["lot_no"],
+                            "Certificate#": rows["report_no"],
+                            "Weight":       rows["cts"],
+                            "Cost/Cts":     0,
+                            "Lab":          rows["lab"],
+                        }).fillna("")
+                    else:
+                        exp = pd.DataFrame({
+                            "Certificate#": rows["report_no"],
+                            "Lot#":         rows["lot_no"],
+                            "Lab":          rows["lab"],
+                            "Weight":       rows["cts"],
+                            "Cost/Cts":     round(rows["per_carat"] * rows["bank_rate"], 2),
+                        }).fillna("")
+                    txt_content = exp.to_csv(sep="\t", index=False)
+                    st.download_button(
+                        label="⬇ Download TXT File",
+                        data=txt_content,
+                        file_name=f"Lot_File_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
+                        mime="text/plain",
+                        key=dl_key,
+                    )
+                    st.success(f"✅ {len(exp)} stones added to TXT file")
+                    st.dataframe(exp, use_container_width=True)
+
+            # ── Paste Certificate Numbers → TXT ───────────────────────────────────
+            st.markdown("---")
+            st.markdown(_label("📋  Paste Certificate Numbers → Generate TXT"), unsafe_allow_html=True)
+            paste_key   = f"paste_cert_{editor_key}"
+            paste_dl_key = f"paste_dl_{dl_key}"
+            paste_btn_key = f"paste_btn_{btn_key}"
+
+            paste_input = st.text_area(
+                "Paste certificate numbers (one per line)",
+                key=paste_key,
+                placeholder="LG123456\nLG789012\n...",
+                height=120,
+                label_visibility="collapsed",
+            )
+
+            paste_list = [normalize_cert(x.strip()) for x in paste_input.splitlines() if x.strip()] if paste_input else []
+
+            if paste_list:
+                st.markdown(
+                    f'<p style="font-size:12px;color:#171717;margin:4px 0 8px;">'
+                    f'📋 {len(paste_list)} certificate(s) entered</p>',
+                    unsafe_allow_html=True,
+                )
+
+            if st.button("📥 Generate TXT from Paste", key=paste_btn_key):
+                if not paste_list:
+                    st.warning("Paste at least one certificate number.")
+                else:
+                    # Fetch matching rows from today's lots OR any LOT status in DB
+                    all_lots_df = read_frame(
+                        "SELECT * FROM buying_stock WHERE lot_no IS NOT NULL AND stock_status != 'RETURN'",
+                        conn,
+                    )
+                    matched = all_lots_df[all_lots_df["report_no"].astype(str).isin(paste_list)].copy()
+                    not_found = [c for c in paste_list if c not in all_lots_df["report_no"].astype(str).values]
+
+                    if matched.empty:
+                        st.error("❌ None of the entered certificates have a lot generated. Please generate lots first.")
+                    else:
+                        matched["per_carat"] = pd.to_numeric(matched["per_carat"], errors="coerce").fillna(0)
+                        matched["bank_rate"] = pd.to_numeric(matched["bank_rate"], errors="coerce").fillna(0)
+                        if is_video:
+                            exp = pd.DataFrame({
+                                "Lot#":         matched["lot_no"],
+                                "Certificate#": matched["report_no"],
+                                "Weight":       matched["cts"],
+                                "Cost/Cts":     0,
+                                "Lab":          matched["lab"],
+                            }).fillna("")
+                        else:
+                            exp = pd.DataFrame({
+                                "Certificate#": matched["report_no"],
+                                "Lot#":         matched["lot_no"],
+                                "Lab":          matched["lab"],
+                                "Weight":       matched["cts"],
+                                "Cost/Cts":     round(matched["per_carat"] * matched["bank_rate"], 2),
+                            }).fillna("")
+                        txt_content = exp.to_csv(sep="\t", index=False)
+                        st.download_button(
+                            label="⬇ Download TXT File",
+                            data=txt_content,
+                            file_name=f"Lot_File_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
+                            mime="text/plain",
+                            key=paste_dl_key,
+                        )
+                        st.success(f"✅ {len(exp)} stone(s) added to TXT file")
+                        st.dataframe(exp, use_container_width=True)
+
+                    if not_found:
+                        st.markdown(
+                            f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
+                            f'border-radius:8px;padding:12px 16px;margin-top:8px;">'
+                            f'<p style="color:#92400e;font-size:13px;font-weight:700;margin:0 0 6px;">'
+                            f'⚠️ {len(not_found)} Certificate(s) — No Lot Found</p>'
+                            f'<p style="color:#92400e;font-size:12px;margin:0 0 6px;">'
+                            f'These certificates do not have a lot generated:</p>'
+                            f'<ul style="color:#92400e;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
+                            + "".join(f"<li>{c}</li>" for c in not_found) +
+                            f'</ul></div>',
+                            unsafe_allow_html=True,
+                        )
+        with lot_inp1:
+            st.markdown(_label("📂  Excel must have REPORT and MEMO NO columns", margin_bottom=12), unsafe_allow_html=True)
+
+            lot_file = st.file_uploader(
+                "Upload Excel (.xlsx)", type=["xlsx"], key="lot_upload"
+            )
+
+            xl_report_list: list[str] = []
+            xl_memo_dict:   dict[str, str] = {}
+
+            if lot_file:
+                lot_df = pd.read_excel(lot_file)
+                lot_df.columns = lot_df.columns.str.strip().str.upper()
+                lot_df = lot_df.fillna("")
+                st.dataframe(lot_df, use_container_width=True)
+
+                if "REPORT" not in lot_df.columns or "MEMO NO" not in lot_df.columns:
+                    st.error("❌ Excel must contain REPORT and MEMO NO columns")
+                else:
+                    for _, row in lot_df.iterrows():
+                        r = normalize_cert(str(row["REPORT"]).strip())
+                        xl_report_list.append(r)
+                        xl_memo_dict[r] = str(row["MEMO NO"]).strip()
+
+                    st.markdown(
+                        f'<p style="font-size:12px;color:#171717;margin:8px 0;">'
+                        f'📋 {len(xl_report_list)} certificate(s) ready</p>',
+                        unsafe_allow_html=True,
+                    )
+
+            if st.button("🚀 Generate Lots (Excel)", key="gen_lots_excel_btn"):
+                if not xl_report_list:
+                    st.warning("Upload a valid Excel file first.")
+                else:
+                    run_lot_generation(xl_report_list, xl_memo_dict, "xl")
+
+            # Show results after button click (survives rerun via session_state)
+            if st.session_state.get("lot_gen_tab") == "xl":
+                _show_lot_gen_results()
+
+            # ── Today's Generated Lots table (Excel Upload tab) ──────────────────
+            st.divider()
+            _render_today_lots("lot_table_editor_xl", "generate_txt_btn_xl", "download_txt_lot_btn_xl")
+
+        # ── SUB-TAB 2: Copy-Paste Text ───────────────────────────────────────────
+        with lot_inp2:
+            st.markdown(_label("📋  Paste certificate numbers and one memo no for all", margin_bottom=12), unsafe_allow_html=True)
+
+            cp_col1, cp_col2 = st.columns([3, 1])
+
+            with cp_col1:
+                cp_certs = st.text_area(
+                    "CERTIFICATE NUMBERS (one per line)",
+                    key="cp_certs_box",
+                    placeholder="LG123456\nLG789012\nLG345678\n...",
+                    height=200,
+                )
+
+            with cp_col2:
+                cp_memo = st.text_input(
+                    "MEMO NO",
+                    key="cp_memo_input",
+                    placeholder="e.g. AP2050",
+                )
+                st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+
+                # Live preview of count
+                cp_list = [normalize_cert(x.strip()) for x in cp_certs.splitlines() if x.strip()] if cp_certs else []
+                st.markdown(
+                    f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
+                    f'border-radius:8px;padding:12px 16px;text-align:center;">'
+                    f'<p style="font-size:12px;color:#737373;margin:0 0 4px;">CERTIFICATES</p>'
+                    f'<p style="font-size:24px;font-weight:800;color:#171717;margin:0;">{len(cp_list)}</p>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
+                    f'border-radius:8px;padding:12px 16px;text-align:center;">'
+                    f'<p style="font-size:12px;color:#737373;margin:0 0 4px;">MEMO NO</p>'
+                    f'<p style="font-size:16px;font-weight:800;color:#171717;margin:0;">'
+                    f'{cp_memo if cp_memo else "—"}</p>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+            if st.button("🚀 Generate Lots (Text)", key="gen_lots_text_btn"):
+                if not cp_list:
+                    st.warning("Paste at least one certificate number.")
+                elif not cp_memo.strip():
+                    st.warning("Enter a Memo No.")
+                else:
+                    # Same memo for all certs, each gets its own lot number
+                    cp_memo_dict = {r: cp_memo.strip() for r in cp_list}
+                    run_lot_generation(cp_list, cp_memo_dict, "cp")
+
+            # Show results after button click (survives rerun via session_state)
+            if st.session_state.get("lot_gen_tab") == "cp":
+                _show_lot_gen_results()
+
+            # ── Today's Generated Lots table (Input IGI No tab) ──────────────────
+            st.divider()
+            _render_today_lots("lot_table_editor_cp", "generate_txt_btn_cp", "download_txt_lot_btn_cp")
+
+        # ── SUB-TAB 3: Master Lot Generation Data ───────────────────────────────
+        with lot_inp3:
+            st.markdown(_label("📊  All lots generated before today — tick rows → generate TXT", margin_bottom=12), unsafe_allow_html=True)
+
+            today_str = datetime.now().strftime("%Y-%m-%d")
+
+            master_df = read_frame(
+                """
+                SELECT report_no, lot_no, memo_no, buyer_name, buying_date,
+                       party_name, lab, cts, shape, color, clarity,
+                       per_carat, bank_rate, amount, lot_date, remark
+                FROM buying_stock
+                WHERE lot_no IS NOT NULL
+                  AND stock_status != 'RETURN'
+                  AND NULLIF(LEFT(lot_date, 10), '')::date < CAST(? AS date)
+                ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC
+                """,
+                conn,
+                params=(today_str,),
+            )
+
+            # ── Report No / Lot No filters ────────────────────────────────────
+            mflt1, mflt2 = st.columns(2)
+            master_report_flt = mflt1.text_input("REPORT NO", key="master_report_filter", placeholder="LG123…")
+            master_lot_flt    = mflt2.text_input("LOT NO",    key="master_lot_filter",    placeholder="918123…")
+
+            if master_report_flt:
+                master_df = master_df[
+                    master_df["report_no"].astype(str).str.contains(master_report_flt, case=False, na=False)
+                ]
+            if master_lot_flt:
+                master_df = master_df[
+                    master_df["lot_no"].astype(str).str.contains(master_lot_flt, case=False, na=False)
+                ]
+
+            if master_df.empty:
+                st.info("ℹ️ No lots found matching your filters.")
+            else:
+                per_carat_m = pd.to_numeric(master_df["per_carat"], errors="coerce").fillna(0)
+                amount_m    = pd.to_numeric(master_df["amount"],    errors="coerce").fillna(0)
+                bank_rate_m = pd.to_numeric(master_df["bank_rate"], errors="coerce").fillna(0)
+
+                if is_video:
+                    per_carat_m = per_carat_m * 0
+                    amount_m    = amount_m    * 0
+                    bank_rate_m = bank_rate_m * 0
+
+                # Summary metrics
+                mm1, mm2, mm3 = st.columns(3)
+                mm1.metric("💎 Total Stones", len(master_df))
+                mm2.metric("📦 Total Carats", round(pd.to_numeric(master_df["cts"], errors="coerce").sum(), 2))
+                mm3.metric("💰 Total AMT USD", round(amount_m.sum(), 2))
+                st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+
+                master_display = pd.DataFrame({
+                    "SELECT":             False,
+                    "CERTIFICATE":        master_df["report_no"].values,
+                    "LOT NUMBER":         master_df["lot_no"].values,
+                    "MEMO NO":            master_df["memo_no"].values,
+                    "BUYER NAME":         master_df["buyer_name"].values,
+                    "BUY DATE":           pd.to_datetime(master_df["buying_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
+                    "PARTY NAME":         master_df["party_name"].values,
+                    "LAB":                master_df["lab"].values,
+                    "WT.":                master_df["cts"].values,
+                    "SHAPE":              master_df["shape"].values,
+                    "COLOR":              master_df["color"].values,
+                    "CLARITY":            master_df["clarity"].values,
+                    "ORG.COST":           per_carat_m.values,
+                    "BANK RATE":          bank_rate_m.values,
+                    "TOTAL BUYING PRICE": amount_m.values,
+                    "INR P/C":            round(per_carat_m * bank_rate_m, 2).values,
+                    "INR TOTAL":          round(amount_m    * bank_rate_m, 2).values,
+                    "LOT DATE":           pd.to_datetime(master_df["lot_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
+                    "REMARK":             master_df["remark"].values,
+                }).fillna("")
+
+                # ── SELECT ALL toggle for master table ────────────────────────
+                master_select_all = st.checkbox("☑ Select All / Deselect All", key="master_select_all")
+                master_display["SELECT"] = master_select_all
+
+                edited_master_df = st.data_editor(
+                    master_display,
+                    column_config={
+                        "SELECT": st.column_config.CheckboxColumn("✔", default=False, width="small"),
+                    },
+                    disabled=[c for c in master_display.columns if c != "SELECT"],
+                    use_container_width=True,
+                    hide_index=True,
+                    key="master_table_editor",
+                    height=560,
+                )
+
+                selected_certs_master = edited_master_df[edited_master_df["SELECT"] == True]["CERTIFICATE"].tolist()
+
+                mb1, mb2, mb3 = st.columns([3, 1, 1])
+                mb1.markdown(
+                    f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
+                    f'border-radius:8px;padding:10px 16px;margin-top:6px;display:inline-block;">'
+                    f'<span style="font-size:12px;color:#737373;">SELECTED</span>'
+                    f'&nbsp;&nbsp;<span style="font-size:20px;font-weight:800;color:#171717;">{len(selected_certs_master)}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                if mb2.button("📥 Generate TXT", key="master_generate_txt_btn"):
+                    if not selected_certs_master:
+                        st.warning("⚠️ Please select at least one row first.")
+                    else:
+                        m_txt_df = master_df[master_df["report_no"].astype(str).isin(selected_certs_master)].copy()
+                        m_txt_df["per_carat"] = pd.to_numeric(m_txt_df["per_carat"], errors="coerce").fillna(0)
+                        m_txt_df["bank_rate"] = pd.to_numeric(m_txt_df["bank_rate"], errors="coerce").fillna(0)
+                        if is_video:
+                            m_export_df = pd.DataFrame({
+                                "Lot#":         m_txt_df["lot_no"],
+                                "Certificate#": m_txt_df["report_no"],
+                                "Weight":       m_txt_df["cts"],
+                                "Cost/Cts":     0,
+                                "Lab":          m_txt_df["lab"],
+                            }).fillna("")
+                        else:
+                            m_export_df = pd.DataFrame({
+                                "Certificate#": m_txt_df["report_no"],
+                                "Lot#":         m_txt_df["lot_no"],
+                                "Lab":          m_txt_df["lab"],
+                                "Weight":       m_txt_df["cts"],
+                                "Cost/Cts":     round(m_txt_df["per_carat"] * m_txt_df["bank_rate"], 2),
+                            }).fillna("")
+                        txt_content = m_export_df.to_csv(sep="\t", index=False)
+                        st.download_button(
+                            label="⬇ Download TXT File",
+                            data=txt_content,
+                            file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
+                            mime="text/plain",
+                            key="master_download_txt_btn",
+                        )
+                        st.success(f"✅ {len(m_export_df)} stones added to TXT file")
+                        st.dataframe(m_export_df, use_container_width=True)
+
+                # Excel download — full master data
+                import io
+                master_excel_buf = io.BytesIO()
+                master_display.drop(columns=["SELECT"]).to_excel(master_excel_buf, index=False, engine="openpyxl")
+                master_excel_buf.seek(0)
+                mb3.download_button(
+                    label="⬇ Excel",
+                    data=master_excel_buf,
+                    file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="master_lot_download_btn",
+                )
+
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TAB 4 — RETURN STONES
+    # ══════════════════════════════════════════════════════════════════════════
+    if not is_video:
+        if tab4:
+            st.markdown(_section_header("🔴", "Return Stones"), unsafe_allow_html=True)
+
+            def normalize_cert(cert: str) -> str:
+                """If user pastes a 9-digit number without LG prefix, auto-add LG."""
+                c = cert.strip()
+                if c.isdigit() and len(c) == 9:
+                    return "LG" + c
+                return c
+
+            ret_sub1, ret_sub2 = st.tabs(["🔴 Return", "🔄 Cancel Lot → Back to Buying Stock"])
+
+            # ── SUB-TAB 1: Normal Return ─────────────────────────────────────────
+            with ret_sub1:
+                st.info("Paste REPORT numbers line by line")
+
+                return_text = st.text_area("Paste REPORT Numbers", key="return_textbox")
+
+                if st.button("🔴 Confirm Return", key="confirm_return_btn"):
+                    if return_text.strip():
+                        report_list_r = [x.strip() for x in return_text.splitlines() if x.strip()]
+                        returned = not_found = 0
+                        return_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                        for report_no in report_list_r:
+                            cursor.execute(
+                                "SELECT report_no FROM buying_stock WHERE report_no=? AND stock_status != 'RETURN'",
+                                (report_no,),
+                            )
+                            if cursor.fetchone():
+                                cursor.execute(
+                                    "UPDATE buying_stock SET stock_status='RETURN', return_date=? WHERE report_no=?",
+                                    (return_date, report_no),
+                                )
+                                returned += 1
+                            else:
+                                not_found += 1
+
+                        conn.commit()
+                        st.success(f"✅ {returned} stones returned")
+                        if not_found:
+                            st.warning(f"⚠️ {not_found} stones not found or already returned")
+                        st.rerun()
+
+                st.divider()
+
+                return_df = read_frame(
+                    "SELECT * FROM buying_stock WHERE stock_status = 'RETURN' ORDER BY id DESC",
+                    conn,
+                )
+
+                c1, c2 = st.columns(2)
+                c1.metric("🔴 Total Returns", len(return_df))
+                c2.metric(
+                    "💰 Return Amount (USD)",
+                    round(return_df["amount"].sum(), 2) if not return_df.empty else 0,
+                )
+
+                # ── Excel download for Return Stones table ───────────────────────
+                if not return_df.empty:
+                    import io as _ret_io
+                    _ret_excel_buf = _ret_io.BytesIO()
+                    return_df.to_excel(_ret_excel_buf, index=False, engine="openpyxl")
+                    _ret_excel_buf.seek(0)
+
+                    ret_dl1, ret_dl2 = st.columns([5, 1])
+                    ret_dl2.download_button(
+                        label="⬇ Excel",
+                        data=_ret_excel_buf,
+                        file_name=f"Return_Stones_{datetime.now().strftime('%d%m%Y')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="return_stones_excel_dl",
+                        use_container_width=True,
+                    )
+
+                st.dataframe(return_df, use_container_width=True, height=620)
+
+            # ── SUB-TAB 2: LOT CANCEL → BUYING STOCK (LIVE) ──────────────────────
+            with ret_sub2:
+                st.markdown(
+                    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #22c55e;'
+                    'border-radius:8px;padding:14px 18px;margin-bottom:20px;">'
+                    '<p style="color:#166534;font-size:13px;font-weight:700;margin:0 0 4px;">🔄 Cancel Lot and Return to Buying Stock</p>'
+                    '<p style="color:#166534;font-size:12px;margin:0;line-height:1.7;">'
+                    'If a lot was generated by mistake for a certificate, or needs to be cancelled for any reason, '
+                    'paste it below. The lot number will be cleared and the stone will go back to <b>LIVE Buying Stock</b>.</p>'
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+
+                revert_text = st.text_area(
+                    "Certificate Numbers (one per line)",
+                    key="revert_lot_textbox",
+                    placeholder="LG123456\nLG789012\n...",
+                    height=160,
+                )
+
+                # Live preview of what will be reverted
+                if revert_text.strip():
+                    revert_list_preview = [normalize_cert(x.strip()) for x in revert_text.splitlines() if x.strip()]
+                    if revert_list_preview:
+                        preview_revert_df = read_frame(
+                            f"""
+                            SELECT report_no, lot_no, memo_no, party_name, shape, cts, per_carat, amount, stock_status
+                            FROM buying_stock
+                            WHERE report_no IN ({','.join(['?']*len(revert_list_preview))})
+                            """,
+                            conn,
+                            params=revert_list_preview,
+                        )
+
+                        lot_found    = preview_revert_df[preview_revert_df["lot_no"].notna() & (preview_revert_df["lot_no"] != "")]
+                        no_lot_found = [r for r in revert_list_preview if r not in preview_revert_df["report_no"].tolist()]
+                        already_live = preview_revert_df[
+                            (preview_revert_df["stock_status"] == "LIVE") &
+                            (preview_revert_df["lot_no"].isna() | (preview_revert_df["lot_no"] == ""))
+                        ]
+
+                        if not lot_found.empty:
+                            st.markdown(
+                                f'<p style="font-size:12px;color:#166534;margin-bottom:6px;">'
+                                f'✅ {len(lot_found)} certificate(s) will have their lot cancelled and return to LIVE:</p>',
+                                unsafe_allow_html=True,
+                            )
+                            st.dataframe(
+                                lot_found.rename(columns={
+                                    "report_no": "CERTIFICATE", "lot_no": "LOT NO (CLEAR HOGA)",
+                                    "memo_no": "MEMO NO", "party_name": "PARTY",
+                                    "shape": "SHAPE", "cts": "CTS",
+                                    "per_carat": "P/CT", "amount": "AMT USD", "stock_status": "STATUS"
+                                }),
+                                use_container_width=True,
+                            )
+
+                        if not already_live.empty:
+                            st.markdown(
+                                f'<div style="background:#fafafa;border:1px solid #d4d4d4;border-left:3px solid #f59e0b;'
+                                f'border-radius:6px;padding:10px 14px;margin:6px 0;">'
+                                f'<p style="color:#92400e;font-size:12px;margin:0;">'
+                                f'⚠️ {len(already_live)} certificate(s) are already LIVE (no lot assigned): '
+                                f'{", ".join(already_live["report_no"].tolist())}</p></div>',
+                                unsafe_allow_html=True,
+                            )
+
+                        if no_lot_found:
+                            st.markdown(
+                                f'<div style="background:#fafafa;border:1px solid #d4d4d4;border-left:3px solid #ef4444;'
+                                f'border-radius:6px;padding:10px 14px;margin:6px 0;">'
+                                f'<p style="color:#991b1b;font-size:12px;margin:0;">'
+                                f'❌ {len(no_lot_found)} certificate(s) not found in DB: '
+                                f'{", ".join(no_lot_found)}</p></div>',
+                                unsafe_allow_html=True,
+                            )
+
+                st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+
+                if st.button("🔄 Confirm — Lot Cancel ", key="confirm_revert_lot_btn"):
+                    if not revert_text.strip():
+                        st.warning("⚠️ No certificate number pasted.")
+                    else:
+                        revert_list = [normalize_cert(x.strip()) for x in revert_text.splitlines() if x.strip()]
+                        reverted = skipped_revert = not_found_revert = 0
+                        revert_details = []
+
+                        for report_no in revert_list:
+                            cursor.execute(
+                                "SELECT report_no, lot_no, stock_status FROM buying_stock WHERE report_no=?",
+                                (report_no,),
+                            )
+                            row = cursor.fetchone()
+
+                            if not row:
+                                not_found_revert += 1
+                                revert_details.append({"CERTIFICATE": report_no, "RESULT": "❌ Not found in DB", "LOT NO": ""})
+                            elif not row[1]:
+                                # No lot assigned
+                                skipped_revert += 1
+                                revert_details.append({"CERTIFICATE": report_no, "RESULT": f"⚠️ No lot was assigned (Status: {row[2]})", "LOT NO": ""})
+                            else:
+                                old_lot = row[1]
+                                # Clear lot_no, lot_date, memo_no → set status back to LIVE
+                                cursor.execute(
+                                    """
+                                    UPDATE buying_stock
+                                    SET stock_status = 'LIVE',
+                                        lot_no       = NULL,
+                                        lot_date     = NULL,
+                                        memo_no      = NULL,
+                                        return_date  = NULL
+                                    WHERE report_no = ?
+                                    """,
+                                    (report_no,),
+                                )
+                                reverted += 1
+                                revert_details.append({"CERTIFICATE": report_no, "RESULT": "✅ Lot cancelled — back to LIVE", "LOT NO": old_lot})
+
+                        conn.commit()
+
+                        if reverted:
+                            st.success(f"✅ {reverted} stone(s) had their lot cancelled — now back in Buying Stock (LIVE)")
+                        if skipped_revert:
+                            st.warning(f"⚠️ {skipped_revert} stone(s) skipped — no lot was assigned")
+                        if not_found_revert:
+                            st.error(f"❌ {not_found_revert} certificate(s) not found in DB")
+
+                        if revert_details:
+                            st.dataframe(pd.DataFrame(revert_details), use_container_width=True)
+
+                        st.rerun()
+
+        # ══════════════════════════════════════════════════════════════════════════
+        # TAB 5 — ADMIN
+        # ══════════════════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════════════
+    # TAB EXPORT STONES
+    # ══════════════════════════════════════════════════════════════════════════
+    if not is_video:
+        if tab_export:
+            st.markdown(_section_header("✈️", "Export Stones"), unsafe_allow_html=True)
+
+            if "export_subpage" not in st.session_state:
+                st.session_state["export_subpage"] = "mark"
+
+            _esp1, _esp2 = st.columns(2)
+            with _esp1:
+                if st.button(
+                    "✈️ Mark as Exported", key="export_subnav_mark", use_container_width=True,
+                    type="primary" if st.session_state["export_subpage"] == "mark" else "secondary",
+                ):
+                    st.session_state["export_subpage"] = "mark"
+                    st.rerun()
+            with _esp2:
+                if st.button(
+                    "📊 Export Data", key="export_subnav_data", use_container_width=True,
+                    type="primary" if st.session_state["export_subpage"] == "data" else "secondary",
+                ):
+                    st.session_state["export_subpage"] = "data"
+                    st.rerun()
+
+            st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+
+            def normalize_cert_exp(cert: str) -> str:
+                c = cert.strip()
+                if c.isdigit() and len(c) == 9:
+                    return "LG" + c
+                return c
+
+            # ── SUB-PAGE 1: Mark as Exported ──────────────────────────────────────
+            if st.session_state["export_subpage"] == "mark":
+                st.markdown(
+                    _label("📋  Paste certificate numbers to mark as Exported (one per line)", margin_bottom=10),
+                    unsafe_allow_html=True,
+                )
+
+                export_text = st.text_area(
+                    "Certificate Numbers",
+                    key="export_cert_box",
+                    placeholder="LG123456\nLG789012\n...",
+                    height=200,
+                    label_visibility="collapsed",
+                )
+
+                export_list = [normalize_cert_exp(x) for x in export_text.splitlines() if x.strip()] if export_text else []
+
+                if export_list:
+                    st.markdown(
+                        f'<p style="font-size:12px;color:#171717;margin:4px 0 10px;">'
+                        f'📋 {len(export_list)} certificate(s) entered</p>',
+                        unsafe_allow_html=True,
+                    )
+
+                    # Preview matching stones
+                    placeholders = ",".join(["?"] * len(export_list))
+                    preview_exp_df = read_frame(
+                        f"""
+                        SELECT report_no, buyer_name, party_name, shape, cts, color, clarity,
+                               stock_status, lot_no, exported_at
+                        FROM buying_stock
+                        WHERE report_no IN ({placeholders})
+                        """,
+                        conn,
+                        params=export_list,
+                    )
+
+                    not_found_exp  = [r for r in export_list if r not in preview_exp_df["report_no"].tolist()]
+                    already_exp    = preview_exp_df[
+                        preview_exp_df["exported_at"].notna() & (preview_exp_df["exported_at"] != "")
+                    ]
+                    to_export_df   = preview_exp_df[
+                        preview_exp_df["exported_at"].isna() | (preview_exp_df["exported_at"] == "")
+                    ]
+                    invalid_status = to_export_df[~to_export_df["stock_status"].isin(["LIVE", "LOT"])]
+                    valid_exp_df   = to_export_df[to_export_df["stock_status"].isin(["LIVE", "LOT"])]
+
+                    if not valid_exp_df.empty:
+                        st.markdown(
+                            f'<p style="font-size:12px;color:#166534;font-weight:600;margin-bottom:6px;">'
+                            f'✅ {len(valid_exp_df)} stone(s) ready to export:</p>',
+                            unsafe_allow_html=True,
+                        )
+                        st.dataframe(
+                            valid_exp_df[["report_no","buyer_name","party_name","shape","cts","color","clarity","stock_status","lot_no"]]
+                            .rename(columns={"report_no":"CERTIFICATE","buyer_name":"BUYER","party_name":"PARTY",
+                                             "shape":"SHAPE","cts":"CTS","color":"COLOR","clarity":"CLARITY",
+                                             "stock_status":"STATUS","lot_no":"LOT NO"}),
+                            use_container_width=True,
+                        )
+
+                    if not already_exp.empty:
+                        st.markdown(
+                            f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
+                            f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
+                            f'<p style="color:#92400e;font-size:13px;font-weight:700;margin:0 0 4px;">'
+                            f'⚠️ Already Exported — {len(already_exp)} Certificate(s)</p>'
+                            f'<p style="color:#92400e;font-size:12px;margin:0 0 6px;">'
+                            f'These certificates were already exported:</p>'
+                            f'<ul style="color:#92400e;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
+                            + "".join(f"<li>{r}</li>" for r in already_exp["report_no"].tolist()) +
+                            f'</ul></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                    if not invalid_status.empty:
+                        st.markdown(
+                            f'<div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;'
+                            f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
+                            f'<p style="color:#991b1b;font-size:13px;font-weight:700;margin:0 0 4px;">'
+                            f'❌ Invalid Status — {len(invalid_status)} Certificate(s)</p>'
+                            f'<p style="color:#b91c1c;font-size:12px;margin:0 0 6px;">'
+                            f'These stones are not in LIVE or LOT status (possibly RETURN):</p>'
+                            f'<ul style="color:#991b1b;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
+                            + "".join(f"<li>{r} ({s})</li>" for r, s in zip(invalid_status["report_no"], invalid_status["stock_status"])) +
+                            f'</ul></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                    if not_found_exp:
+                        st.markdown(
+                            f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #ef4444;'
+                            f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
+                            f'<p style="color:#991b1b;font-size:13px;font-weight:700;margin:0 0 4px;">'
+                            f'❌ Not Found — {len(not_found_exp)} Certificate(s)</p>'
+                            f'<p style="color:#b91c1c;font-size:12px;margin:0 0 6px;">'
+                            f'These certificates were not found in the buying file:</p>'
+                            f'<ul style="color:#991b1b;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
+                            + "".join(f"<li>{r}</li>" for r in not_found_exp) +
+                            f'</ul></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+
+                # ── Export Details Form (shown when certificates are entered) ──
+                if export_list:
+                    st.markdown("---")
+                    st.markdown(
+                        _label("📋  Export Details — Fill before confirming", margin_bottom=10),
+                        unsafe_allow_html=True,
+                    )
+                    ef1, ef2, ef3 = st.columns(3)
+                    export_date_input    = ef1.date_input("Export Date",     key="exp_date_input",     value=datetime.now().date())
+                    export_location_input = ef2.text_input("Export Location", key="exp_location_input")
+                    export_part_input    = ef3.selectbox("Export Part",      key="exp_part_input",     options=["Part-A", "Part-B"])
+
+                if st.button("✈️ Confirm Export", key="confirm_export_btn"):
+                    if not export_list:
+                        st.warning("⚠️ Paste at least one certificate number.")
+                    elif not export_date_input:
+                        st.warning("⚠️ Please select an Export Date.")
+                    elif not export_location_input or not export_location_input.strip():
+                        st.warning("⚠️ Please fill in the Export Location.")
+                    elif not export_part_input:
+                        st.warning("⚠️ Please select an Export Part.")
+                    else:
+                        export_ts        = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        exp_date_str     = export_date_input.strftime("%d-%m-%Y")
+                        exp_location_str = export_location_input
+                        exp_part_str     = export_part_input
+                        exported_count = skipped_exp = not_found_exp_btn = 0
+
+                        for report_no in export_list:
+                            cursor.execute(
+                                "SELECT report_no, stock_status, exported_at FROM buying_stock WHERE report_no=?",
+                                (report_no,),
+                            )
+                            row_data = cursor.fetchone()
+                            if not row_data:
+                                not_found_exp_btn += 1
+                                continue
+                            _, status, exp_at = row_data
+                            if exp_at:
+                                skipped_exp += 1
+                                continue
+                            if status not in ("LIVE", "LOT"):
+                                skipped_exp += 1
+                                continue
+                            cursor.execute(
+                                """UPDATE buying_stock
+                                   SET exported_at=?, export_date=?, export_location=?, export_part=?
+                                   WHERE report_no=?""",
+                                (export_ts, exp_date_str, exp_location_str, exp_part_str, report_no),
+                            )
+                            exported_count += 1
+
+                        conn.commit()
+
+                        if exported_count:
+                            st.success(
+                                f"✈️ {exported_count} stone(s) exported  ·  "
+                                f"Date: {exp_date_str}  ·  Location: {exp_location_str}  ·  Part: {exp_part_str}"
+                            )
+                        if skipped_exp:
+                            st.warning(f"⚠️ {skipped_exp} stone(s) skipped (already exported or invalid status)")
+                        if not_found_exp_btn:
+                            st.error(f"❌ {not_found_exp_btn} certificate(s) not found in DB")
+                        st.rerun()
+
+            # ── SUB-PAGE 2: Export Data ────────────────────────────────────────────
+            elif st.session_state["export_subpage"] == "data":
+                st.markdown(_section_header("📊", "Export Data"), unsafe_allow_html=True)
+
+                exp_data_df = read_frame(
+                    """
+                    SELECT b.buyer_name, b.buying_date, b.party_name, b.report_no, b.lab,
+                           b.diamond_type, b.shape, b.cts, b.color, b.clarity,
+                           b.per_carat, b.amount, b.bank_rate, b.location, b.remark,
+                           b.stock_status, b.lot_no, b.inr_pc, b.inr_total,
+                           b.exported_at, b.export_date, b.export_location, b.export_part
+                    FROM buying_stock b
+                    WHERE b.exported_at IS NOT NULL AND b.exported_at != ''
+                    ORDER BY b.exported_at DESC
+                    """,
+                    conn,
+                )
+
+                if exp_data_df.empty:
+                    st.info("ℹ️ No stones have been exported yet.")
+                else:
+                    # KPI Cards
+                    e_stones = len(exp_data_df)
+                    e_cts    = round(pd.to_numeric(exp_data_df["cts"],    errors="coerce").sum(), 2)
+                    e_amt    = round(pd.to_numeric(exp_data_df["amount"], errors="coerce").sum(), 2)
+                    e_br     = pd.to_numeric(exp_data_df["bank_rate"],    errors="coerce").fillna(0)
+                    e_inr    = round((pd.to_numeric(exp_data_df["amount"], errors="coerce").fillna(0) * e_br).sum(), 2)
+
+                    ek1, ek2, ek3, ek4 = st.columns(4)
+                    ek1.markdown(
+                        f'<div class="kpi-card" style="--accent:#171717;">'
+                        f'<span class="kpi-icon">✈️</span>'
+                        f'<p class="kpi-label">EXPORTED STONES</p>'
+                        f'<p class="kpi-value">{e_stones:,}</p>'
+                        f'<p class="kpi-sub">total exported</p></div>',
+                        unsafe_allow_html=True,
+                    )
+                    ek2.markdown(
+                        f'<div class="kpi-card" style="--accent:#3b82f6;">'
+                        f'<span class="kpi-icon">⚖️</span>'
+                        f'<p class="kpi-label">TOTAL CARATS</p>'
+                        f'<p class="kpi-value">{e_cts:,}</p>'
+                        f'<p class="kpi-sub">exported weight</p></div>',
+                        unsafe_allow_html=True,
+                    )
+                    ek3.markdown(
+                        f'<div class="kpi-card" style="--accent:#22c55e;">'
+                        f'<span class="kpi-icon">💵</span>'
+                        f'<p class="kpi-label">TOTAL AMT USD</p>'
+                        f'<p class="kpi-value">${e_amt:,.0f}</p>'
+                        f'<p class="kpi-sub">exported value</p></div>',
+                        unsafe_allow_html=True,
+                    )
+                    ek4.markdown(
+                        f'<div class="kpi-card" style="--accent:#a855f7;">'
+                        f'<span class="kpi-icon">🇮🇳</span>'
+                        f'<p class="kpi-label">TOTAL AMT INR</p>'
+                        f'<p class="kpi-value">₹{e_inr:,.0f}</p>'
+                        f'<p class="kpi-sub">converted value</p></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
+
+                    # Filters
+                    st.markdown(_label("🔎  Filters", margin_bottom=6), unsafe_allow_html=True)
+                    ef1, ef2, ef3 = st.columns(3)
+                    ef_report = ef1.text_input("REPORT NO",  key="exp_report_filter", placeholder="LG123…")
+                    ef_party  = ef2.text_input("PARTY",       key="exp_party_filter",  placeholder="Party name…")
+                    ef_status = ef3.selectbox("STATUS", options=["All", "LIVE", "LOT"], key="exp_status_filter")
+
+                    disp_exp = exp_data_df.copy()
+                    if ef_report:
+                        disp_exp = disp_exp[disp_exp["report_no"].astype(str).str.contains(ef_report, case=False, na=False)]
+                    if ef_party:
+                        disp_exp = disp_exp[disp_exp["party_name"].astype(str).str.contains(ef_party, case=False, na=False)]
+                    if ef_status != "All":
+                        disp_exp = disp_exp[disp_exp["stock_status"] == ef_status]
+
+                    # INR columns
+                    pc_e  = pd.to_numeric(disp_exp["per_carat"], errors="coerce").fillna(0)
+                    amt_e = pd.to_numeric(disp_exp["amount"],    errors="coerce").fillna(0)
+                    br_e  = pd.to_numeric(disp_exp["bank_rate"], errors="coerce").fillna(0)
+                    db_inr_pc_e    = pd.to_numeric(disp_exp.get("inr_pc",    pd.Series(dtype=float)), errors="coerce")
+                    db_inr_total_e = pd.to_numeric(disp_exp.get("inr_total", pd.Series(dtype=float)), errors="coerce")
+                    disp_exp["INR P/C"]   = db_inr_pc_e.where(db_inr_pc_e.notna() & (db_inr_pc_e != 0), round(pc_e * br_e, 2))
+                    disp_exp["INR TOTAL"] = db_inr_total_e.where(db_inr_total_e.notna() & (db_inr_total_e != 0), round(amt_e * br_e, 2))
+
+                    disp_exp = disp_exp.rename(columns={
+                        "buyer_name":        "BUYER",
+                        "buying_date":       "DATE",
+                        "party_name":        "PARTY",
+                        "report_no":         "REPORT NO",
+                        "lab":               "LAB",
+                        "diamond_type":      "TYPE",
+                        "shape":             "SHAPE",
+                        "cts":               "CTS",
+                        "color":             "COLOR",
+                        "clarity":           "CLARITY",
+                        "per_carat":         "$P/CT",
+                        "amount":            "AMT USD",
+                        "bank_rate":         "BANK RATE",
+                        "location":          "LOCATION",
+                        "remark":            "REMARK",
+                        "stock_status":      "STATUS",
+                        "lot_no":            "LOT NO",
+                        "exported_at":       "EXPORTED AT",
+                        "export_date":       "EXPORT DATE",
+                        "export_location":   "EXPORT LOCATION",
+                        "export_part":       "EXPORT PART",
+                    })
+                    disp_exp.drop(["inr_pc", "inr_total"], axis=1, inplace=True, errors="ignore")
+                    st.dataframe(disp_exp, use_container_width=True, height=560)
+
+                    # Excel download
+                    import io as _exp_io
+                    exp_buf = _exp_io.BytesIO()
+                    disp_exp.to_excel(exp_buf, index=False, engine="openpyxl")
+                    exp_buf.seek(0)
+                    st.download_button(
+                        label="⬇ Download Export Data (.xlsx)",
+                        data=exp_buf,
+                        file_name=f"Export_Data_{datetime.now().strftime('%d%m%Y_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="export_data_dl_btn",
+                    )
+
+                    # Undo export section (admin only)
+                    if is_admin:
+                        st.markdown("---")
+                        st.markdown(_label("↩️  Undo Export — paste certificates to move back to Buying Stock", margin_bottom=10), unsafe_allow_html=True)
+                        undo_text = st.text_area(
+                            "Certificates to Undo",
+                            key="undo_export_box",
+                            placeholder="LG123456\nLG789012\n...",
+                            height=120,
+                            label_visibility="collapsed",
+                        )
+                        if st.button("↩️ Undo Export", key="undo_export_btn"):
+                            if not undo_text.strip():
+                                st.warning("⚠️ Paste at least one certificate number.")
+                            else:
+                                undo_list = [normalize_cert_exp(x) for x in undo_text.splitlines() if x.strip()]
+                                undone = undo_not_found = 0
+                                for report_no in undo_list:
+                                    cursor.execute(
+                                        "SELECT report_no FROM buying_stock WHERE report_no=? AND exported_at IS NOT NULL AND exported_at != ''",
+                                        (report_no,),
+                                    )
+                                    if cursor.fetchone():
+                                        cursor.execute(
+                                            "UPDATE buying_stock SET exported_at=NULL WHERE report_no=?",
+                                            (report_no,),
+                                        )
+                                        undone += 1
+                                    else:
+                                        undo_not_found += 1
+                                conn.commit()
+                                if undone:
+                                    st.success(f"↩️ {undone} stone(s) moved back to Buying Stock")
+                                if undo_not_found:
+                                    st.warning(f"⚠️ {undo_not_found} certificate(s) not found in export list")
+                                st.rerun()
+
+    if not is_video:
+        if is_admin:
+          if tab5:
+            st.markdown(_section_header("⚙️", "Admin Panel"), unsafe_allow_html=True)
+
+            adm1, adm2, adm3, adm4, adm5 = st.tabs([
+                "📥 Full Database Download",
+                "🗑 Delete by Certificate",
+                "✏️ Edit Row by Certificate",
+                "👥 User Management",
+                "🔀 Shape Mapping",
+            ])
+
+            # ── ADMIN SUB-TAB 1: FULL DB DOWNLOAD ─────────────────────────────────
+            with adm1:
+                st.markdown(_label("📥  Export entire database as Excel", margin_bottom=16), unsafe_allow_html=True)
+
+                if st.button("📥 Generate Database Export", key="full_db_generate_btn", use_container_width=True):
+                    full_df = read_frame("SELECT * FROM buying_stock ORDER BY id DESC", conn)
+                    if full_df.empty:
+                        st.warning("⚠️ No data found in database.")
+                        st.session_state.pop("full_db_export_bytes", None)
+                        st.session_state.pop("full_db_export_stats", None)
+                    else:
+                        import io
+                        buf = io.BytesIO()
+                        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+                            full_df.to_excel(writer, index=False, sheet_name="Stock")
+                        buf.seek(0)
+                        st.session_state["full_db_export_bytes"] = buf.getvalue()
+                        st.session_state["full_db_export_stats"] = (
+                            len(full_df),
+                            round(pd.to_numeric(full_df["cts"], errors="coerce").sum(), 2),
+                            round(pd.to_numeric(full_df["amount"], errors="coerce").sum(), 2),
+                        )
+
+                if "full_db_export_bytes" in st.session_state:
+                    stones, carats, usd = st.session_state["full_db_export_stats"]
+                    m1, m2, m3, _sp = st.columns([1, 1, 1, 3])
+                    m1.metric("💎 Total Stones", stones)
+                    m2.metric("📦 Total Carats", carats)
+                    m3.metric("💰 Total USD",    usd)
+
+                    st.markdown('<div style="height:14px;"></div>', unsafe_allow_html=True)
+
+                    st.download_button(
+                        label="⬇ Download Full Database (.xlsx)",
+                        data=st.session_state["full_db_export_bytes"],
+                        file_name=f"LGD_Full_DB_{datetime.now().strftime('%d%m%Y_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="full_db_download",
+                    )
+
+            # ── ADMIN SUB-TAB 2: DELETE BY CERTIFICATE ────────────────────────────
+            with adm2:
+                st.markdown(_label("🗑  Paste certificate numbers to permanently delete", margin_bottom=16), unsafe_allow_html=True)
+
+                del_text = st.text_area(
+                    "Certificate Numbers (one per line)",
+                    key="delete_cert_box",
+                    placeholder="LG123456\nLG789012\n...",
+                    height=160,
+                )
+
+                if del_text.strip():
+                    del_list = [x.strip() for x in del_text.splitlines() if x.strip()]
+                    preview_df = read_frame(
+                        f"SELECT report_no, buyer_name, party_name, shape, cts, stock_status FROM buying_stock "
+                        f"WHERE report_no IN ({','.join(['?']*len(del_list))})",
+                        conn, params=del_list,
+                    )
+                    not_found_del = [r for r in del_list if r not in preview_df["report_no"].tolist()]
+
+                    if not preview_df.empty:
+                        st.markdown(
+                            f'<p style="font-size:12px;color:#b91c1c;margin-bottom:6px;">'
+                            f'⚠️ {len(preview_df)} stone(s) will be permanently deleted:</p>',
+                            unsafe_allow_html=True,
+                        )
+                        st.dataframe(preview_df, use_container_width=True)
+
+                    if not_found_del:
+                        st.warning(f"Not found in DB: {', '.join(not_found_del)}")
+
+                confirm_delete = st.button("🗑 Confirm Delete", key="confirm_delete_btn")
+                if confirm_delete:
+                    if not del_text.strip():
+                        st.warning("Please enter certificate numbers first.")
+                    else:
+                        del_list = [x.strip() for x in del_text.splitlines() if x.strip()]
+                        deleted = 0
+                        for report_no in del_list:
+                            cursor.execute("DELETE FROM buying_stock WHERE report_no=?", (report_no,))
+                            deleted += cursor.rowcount
+                        conn.commit()
+                        st.success(f"✅ {deleted} stone(s) deleted permanently")
+                        st.rerun()
+
+            # ── ADMIN SUB-TAB 3: EDIT ROW BY CERTIFICATE ──────────────────────────
+            with adm3:
+                st.markdown(
+                    '<p style="font-size:12px;color:#737373;'
+                    'margin-bottom:16px;">'
+                    '✏️  Upload Excel with REPORT column + columns to update</p>',
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown(
+                    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;'
+                    'padding:14px 18px;margin-bottom:20px;">'
+                    '<p style="color:#166534;font-size:12px;margin:0;font-family:DM Mono,monospace;line-height:2;">'
+                    '📋 <b>Format:</b> Excel must have a <b>REPORT</b> column + any columns to update.<br>'
+                    '⚡ If you change any of these: <b>CTS / PER CARAT / BANK RATE</b>, the following 3 fields will be automatically recalculated:<br>'
+                    '&nbsp;&nbsp;• <b>AMT</b> = CTS × PER CARAT<br>'
+                    '&nbsp;&nbsp;• <b>INR P/C</b> = PER CARAT × BANK RATE<br>'
+                    '&nbsp;&nbsp;• <b>INR TOTAL</b> = AMT × BANK RATE<br>'
+                    '<span style="color:#166534;">BUYER NAME | DATE | PARTY NAME | LAB | TYPE | SHAPE | CTS | COL | '
+                    'CLA | PER CARAT | AMT | BANK RATE | LOCATION | REMARK</span>'
+                    '</p></div>',
+                    unsafe_allow_html=True,
+                )
+
+                edit_file = st.file_uploader(
+                    "Upload Edit Excel (.xlsx)",
+                    type=["xlsx"],
+                    key="edit_upload",
+                )
+
+                COL_MAP = {
+                    "BUYER NAME":    "buyer_name",
+                    "DATE":          "buying_date",
+                    "PARTY NAME":    "party_name",
+                    "LAB":           "lab",
+                    "TYPE":          "diamond_type",
+                    "SHAPE":         "shape",
+                    "CTS":           "cts",
+                    "COL":           "color",
+                    "CLA":           "clarity",
+                    "PER CARAT":     "per_carat",
+                    "AMT":           "amount",
+                    "BANK RATE":     "bank_rate",
+                    "LOCATION":      "location",
+                    "REMARK":        "remark",
+                }
+                NUMERIC_COLS = {"CTS", "PER CARAT", "AMT", "BANK RATE"}
+
+                if edit_file:
+                    edit_df = pd.read_excel(edit_file)
+                    edit_df.columns = edit_df.columns.str.strip().str.upper()
+                    edit_df = edit_df.fillna("")
+
+                    if "REPORT" not in edit_df.columns:
+                        st.error("❌ REPORT column is required")
+                    else:
+                        updatable = [c for c in edit_df.columns if c in COL_MAP]
+                        if not updatable:
+                            st.error("❌ No updatable columns found.")
+                        else:
+                            # Show which columns will trigger recalculation
+                            TRIGGER = {"CTS", "PER CARAT", "BANK RATE"}
+                            triggered = [c for c in TRIGGER if c in updatable]
+                            if triggered:
+                                st.markdown(
+                                    '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;'
+                                    'padding:10px 14px;margin-bottom:12px;">'
+                                    f'<p style="color:#92400e;font-size:12px;margin:0;line-height:1.9;">'
+                                    f'⚡ <b>{", ".join(triggered)}</b> column(s) detected — the following 3 columns will be recalculated:<br>'
+                                    '&nbsp;&nbsp;✦ <b>AMT</b> = CTS × PER CARAT<br>'
+                                    '&nbsp;&nbsp;✦ <b>INR P/C</b> = PER CARAT × BANK RATE<br>'
+                                    '&nbsp;&nbsp;✦ <b>INR TOTAL</b> = AMT × BANK RATE</p></div>',
+                                    unsafe_allow_html=True,
+                                )
+                            st.markdown(
+                                f'<p style="font-size:12px;color:#171717;margin-bottom:8px;">'
+                                f'Columns to update: <b>{", ".join(updatable)}</b></p>',
+                                unsafe_allow_html=True,
+                            )
+                            st.dataframe(edit_df, use_container_width=True)
+
+                            if st.button("✏️ Apply Changes", key="apply_edit_btn"):
+                                updated = not_found_e = 0
+                                TRIGGER_COLS = {"CTS", "PER CARAT", "BANK RATE"}
+                                needs_recalc = bool(TRIGGER_COLS & set(updatable))
+
+                                for _, row in edit_df.iterrows():
+                                    report_no = str(row["REPORT"]).strip()
+                                    cursor.execute(
+                                        "SELECT cts, per_carat, amount, bank_rate FROM buying_stock WHERE report_no=?",
+                                        (report_no,),
+                                    )
+                                    existing = cursor.fetchone()
+                                    if not existing:
+                                        not_found_e += 1
+                                        continue
+
+                                    db_cts, db_pc, db_amt, db_br = (float(v or 0) for v in existing)
+
+                                    # ── Pick final value: Excel cell if filled, else DB value ──
+                                    def pick(col, db_val):
+                                        if col in updatable and str(row[col]).strip() != "":
+                                            try:    return float(row[col])
+                                            except: return db_val
+                                        return db_val
+
+                                    new_cts = pick("CTS",       db_cts)
+                                    new_pc  = pick("PER CARAT", db_pc)
+                                    new_br  = pick("BANK RATE", db_br)
+
+                                    # ── Recalculate all 3 derived columns ─────────────────────
+                                    #   AMT       = CTS × PER CARAT
+                                    #   INR P/C   = PER CARAT × BANK RATE
+                                    #   INR TOTAL = AMT × BANK RATE
+                                    new_amt      = round(new_cts * new_pc,       2)
+                                    new_inr_pc   = round(new_pc  * new_br,       2)
+                                    new_inr_total= round(new_amt  * new_br,      2)
+
+                                    # ── Build SET clause: user columns first ──────────────────
+                                    set_parts = []
+                                    values    = []
+                                    for c in updatable:
+                                        db_col = COL_MAP[c]
+                                        # Skip AMT — we will always force-set it below
+                                        if db_col == "amount":
+                                            continue
+                                        if str(row[c]).strip() == "":
+                                            continue
+                                        set_parts.append(f"{db_col}=?")
+                                        if c in NUMERIC_COLS and str(row[c]).strip() != "":
+                                            values.append(float(row[c]))
+                                        else:
+                                            values.append(str(row[c]))
+
+                                    # ── Always write the 3 recalculated columns to DB ─────────
+                                    set_parts += ["amount=?", "inr_pc=?", "inr_total=?"]
+                                    values    += [new_amt, new_inr_pc, new_inr_total]
+
+                                    values.append(report_no)
+                                    cursor.execute(
+                                        f"UPDATE buying_stock SET {', '.join(set_parts)} WHERE report_no=?",
+                                        values,
+                                    )
+                                    updated += 1
+
+                                conn.commit()
+
+                                recalc_note = " · AMT, INR P/C, INR TOTAL recalculated" if needs_recalc else ""
+                                st.success(f"✅ {updated} stone(s) updated{recalc_note}")
+                                if not_found_e:
+                                    st.warning(f"⚠️ {not_found_e} certificate(s) not found in DB")
+                                st.rerun()
+
+            # ── ADMIN SUB-TAB 4: USER MANAGEMENT ──────────────────────────────────
+            with adm4:
+                st.markdown(_label("👥  Manage users", margin_bottom=16), unsafe_allow_html=True)
+
+                # Current users list
+                users_df = read_frame("SELECT id, username, role FROM users ORDER BY id", conn)
+                st.dataframe(users_df, use_container_width=True)
+
+                st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True)
+                st.markdown(_label("➕  Add New User", margin_bottom=10), unsafe_allow_html=True)
+
+                u1, u2, u3, u4 = st.columns([2, 2, 1, 1])
+                new_uname = u1.text_input("USERNAME",  key="new_uname",    placeholder="username")
+                new_upass = u2.text_input("PASSWORD",  key="new_upass",    placeholder="password", type="password")
+                new_role  = u3.selectbox("ROLE",       key="new_role",     options=["user", "admin", "video"])
+
+                u4.markdown('<div style="height:26px;"></div>', unsafe_allow_html=True)
+                if u4.button("➕ Add User", key="add_user_btn"):
+                    if not new_uname.strip() or len(new_upass.strip()) < 12:
+                        st.warning("Username and a password of at least 12 characters are required.")
+                    else:
+                        try:
+                            cursor.execute(
+                                "INSERT INTO users (username, password, role) VALUES (?,?,?)",
+                                (new_uname.strip(), hash_pw(new_upass.strip()), new_role),
+                            )
+                            conn.commit()
+                            st.success(f"✅ User '{new_uname.strip()}' added as {new_role}")
+                            st.rerun()
+                        except Exception:
+                            conn.rollback()
+                            st.error(f"❌ Username '{new_uname.strip()}' already exists")
+
+                st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True)
+                st.markdown(_label("🗑  Delete / Reset Password", margin_bottom=10), unsafe_allow_html=True)
+
+                d1, d2, d3, d4 = st.columns([2, 2, 1, 1])
+                del_uname   = d1.text_input("USERNAME TO MANAGE", key="del_uname", placeholder="username")
+                reset_upass = d2.text_input("NEW PASSWORD (for reset)", key="reset_pass", placeholder="leave blank to delete", type="password")
+
+                d3.markdown('<div style="height:26px;"></div>', unsafe_allow_html=True)
+                if d3.button("🔑 Reset PW", key="reset_pw_btn"):
+                    if not del_uname.strip() or len(reset_upass.strip()) < 12:
+                        st.warning("Enter username and a new password of at least 12 characters.")
+                    elif del_uname.strip() == st.session_state["username"]:
+                        st.warning("To change your own password, sign out and use the 'Forgot / Reset Password' option on the login screen.")
+                    else:
+                        cursor.execute(
+                            "UPDATE users SET password=? WHERE username=?",
+                            (hash_pw(reset_upass.strip()), del_uname.strip()),
+                        )
+                        conn.commit()
+                        if cursor.rowcount:
+                            st.success(f"✅ Password reset for '{del_uname.strip()}'")
+                        else:
+                            st.error("User not found")
+                        st.rerun()
+
+                d4.markdown('<div style="height:26px;"></div>', unsafe_allow_html=True)
+                if d4.button("🗑 Delete User", key="del_user_btn"):
+                    if not del_uname.strip():
+                        st.warning("Enter a username to delete.")
+                    elif del_uname.strip() == st.session_state["username"]:
+                        st.error("❌ Cannot delete yourself.")
+                    else:
+                        cursor.execute("DELETE FROM users WHERE username=?", (del_uname.strip(),))
+                        conn.commit()
+                        if cursor.rowcount:
+                            st.success(f"✅ User '{del_uname.strip()}' deleted")
+                        else:
+                            st.error("User not found")
+                        st.rerun()
+
+        # ── ADMIN SUB-TAB 5: SHAPE MAPPING ────────────────────────────────────
+            with adm5:
+                st.markdown(_label("🔀  Shape Alias Mapping — alias entered in Excel → saved as mapped value in DB", margin_bottom=16), unsafe_allow_html=True)
+
+                # ── Current mappings table ─────────────────────────────────────
+                maps_df = read_frame(
+                    "SELECT id, alias, mapped_to FROM shape_mappings ORDER BY alias", conn
+                )
+
+                if maps_df.empty:
+                    st.info("ℹ️ No mappings saved yet. Add one below.")
+                else:
+                    st.markdown(_label("📋  Existing Mappings", margin_bottom=6), unsafe_allow_html=True)
+                    st.dataframe(
+                        maps_df.rename(columns={"id": "ID", "alias": "ALIAS (Excel value)", "mapped_to": "MAPPED TO (DB value)"}),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+                st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
+
+                # ── Add new mapping ────────────────────────────────────────────
+                st.markdown(_label("➕  Add / Update Mapping", margin_bottom=10), unsafe_allow_html=True)
+                mp1, mp2, mp3 = st.columns([2, 2, 1])
+                new_alias  = mp1.text_input("ALIAS (e.g. RBC)", key="map_alias",    placeholder="Value in Excel…")
+                new_mapped = mp2.text_input("MAPS TO (e.g. ROUND)", key="map_target", placeholder="Value to save in DB…")
+                mp3.markdown('<div style="height:26px;"></div>', unsafe_allow_html=True)
+                if mp3.button("💾 Save", key="save_mapping_btn"):
+                    alias_val  = new_alias.strip().upper()
+                    mapped_val = new_mapped.strip().upper()
+                    if not alias_val or not mapped_val:
+                        st.warning("Both Alias and Mapped To are required.")
+                    else:
+                        cursor.execute(
+                            "INSERT INTO shape_mappings (alias, mapped_to) VALUES (?, ?) "
+                            "ON CONFLICT(alias) DO UPDATE SET mapped_to=excluded.mapped_to",
+                            (alias_val, mapped_val),
+                        )
+                        conn.commit()
+                        st.success(f"✅ Mapping saved: **{alias_val}** → **{mapped_val}**")
+                        st.rerun()
+
+                st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
+
+                # ── Delete mapping ─────────────────────────────────────────────
+                if not maps_df.empty:
+                    st.markdown(_label("🗑  Delete a Mapping", margin_bottom=10), unsafe_allow_html=True)
+                    del1, del2 = st.columns([3, 1])
+                    alias_to_del = del1.selectbox(
+                        "Select alias to delete",
+                        options=maps_df["alias"].tolist(),
+                        key="del_alias_select",
+                        label_visibility="collapsed",
+                    )
+                    del2.markdown('<div style="height:26px;"></div>', unsafe_allow_html=True)
+                    if del2.button("🗑 Delete", key="del_mapping_btn"):
+                        cursor.execute("DELETE FROM shape_mappings WHERE alias=?", (alias_to_del,))
+                        conn.commit()
+                        st.success(f"✅ Mapping '{alias_to_del}' deleted")
+                        st.rerun()
+
+        # ── CLOSE ─────────────────────────────────────────────────────────────────
+        # Connection is released in the outer finally block.
+
+finally:
+    conn.close()
