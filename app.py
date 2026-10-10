@@ -181,6 +181,97 @@ def _label(text, margin_bottom=8):
         f'margin-bottom:{margin_bottom}px;">{text}</p>'
     )
 
+def bulk_upload_stock(conn, df, upload_time, progress=None, batch_size=1000):
+    """Upload stock in batches, retaining existing lot/export and return rules."""
+    import math
+    columns = ['buyer_name', 'buying_date', 'party_name', 'report_no', 'lab',
+               'diamond_type', 'shape', 'cts', 'color', 'clarity', 'per_carat',
+               'amount', 'bank_rate', 'inr_pc', 'inr_total', 'location', 'remark',
+               'upload_time']
+    inputs = ['BUYER NAME', 'DATE', 'PARTY NAME', 'REPORT', 'LAB', 'TYPE', 'SHAPE',
+              'CTS', 'COL', 'CLA', 'PER CARAT', 'AMT', 'BANK RATE', 'INR_PC',
+              'INR_TOTAL', 'LOCATION', 'REMARK']
+    numeric = {'CTS', 'PER CARAT', 'AMT', 'BANK RATE', 'INR_PC', 'INR_TOTAL'}
+    rows = []
+    # Validate before any writes and adapt numpy values to ordinary Python values.
+    for number, values in enumerate(df[inputs].itertuples(index=False, name=None), 2):
+        record = []
+        for name, value in zip(inputs, values):
+            if name in numeric:
+                try:
+                    value = float(value)
+                    if not math.isfinite(value):
+                        raise ValueError()
+                except (ValueError, TypeError):
+                    raise ValueError(f'Excel row {number}: invalid number in {name}. No data saved.') from None
+            else:
+                value = str(value)
+                if name == 'REPORT':
+                    value = value.strip()
+                    if not value:
+                        raise ValueError(f'Excel row {number}: REPORT is blank. No data saved.')
+            record.append(value)
+        rows.append(tuple(record) + (upload_time,))
+    if not rows:
+        return 0, 0, []
+    updates = ', '.join(f'{col}=EXCLUDED.{col}' for col in columns if col != 'report_no')
+    updates += ", stock_status=CASE WHEN buying_stock.stock_status='RETURN' THEN CASE WHEN COALESCE(buying_stock.lot_no,'')<>'' THEN 'LOT' ELSE 'LIVE' END ELSE buying_stock.stock_status END"
+    updates += ", return_date=CASE WHEN buying_stock.stock_status='RETURN' THEN NULL ELSE buying_stock.return_date END"
+    inserted = updated = 0
+    lot_warnings = []
+    cur = conn.raw.cursor()
+    try:
+        # Same transaction lock as lot generation; no overlapping lot assignment/upload.
+        cur.execute('SELECT pg_advisory_xact_lock(728190402)')
+        for start in range(0, len(rows), batch_size):
+            batch = rows[start:start + batch_size]
+            reports = list(dict.fromkeys(row[3] for row in batch))
+            cur.execute('SELECT report_no,stock_status,lot_no FROM buying_stock WHERE report_no=ANY(%s) FOR UPDATE', (reports,))
+            existing = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
+            unique = {}
+            for row in batch:
+                report = row[3]
+                if report in existing:
+                    status, lot = existing[report]
+                    if status == 'LOT' and lot:
+                        lot_warnings.append(f'{report} (Lot: {lot})')
+                    if status == 'RETURN':
+                        existing[report] = ('LOT' if lot else 'LIVE', lot)
+                    updated += 1
+                else:
+                    inserted += 1
+                    existing[report] = ('LIVE', None)
+                # Last occurrence wins, as with the previous sequential uploader.
+                unique[report] = row
+            values = list(unique.values())
+            template = '(' + ','.join(['%s'] * len(columns)) + ",'LIVE')"
+            query = 'INSERT INTO buying_stock (' + ','.join(columns) + ',stock_status) VALUES '
+            query += ','.join([template] * len(values))
+            query += ' ON CONFLICT (report_no) DO UPDATE SET ' + updates
+            cur.execute(query, tuple(value for row in values for value in row))
+            if progress:
+                progress(min((start + len(batch)) / len(rows), 1.0))
+        conn.commit()
+        return inserted, updated, lot_warnings
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+
+
+def read_uploaded_excel(uploaded):
+    import hashlib
+    import io
+    payload = uploaded.getvalue()
+    token = hashlib.sha256(payload).hexdigest()
+    cached = st.session_state.get("parsed_excel")
+    if cached is None or cached[0] != token:
+        cached = (token, pd.read_excel(io.BytesIO(payload)))
+        st.session_state["parsed_excel"] = cached
+    return cached[1].copy(deep=True)
+
+
 # ── DATABASE ──────────────────────────────────────────────────────────────
 def setting(name):
     value = os.environ.get(name)
@@ -204,8 +295,31 @@ def prepare_database(database_url, admin_username, admin_password):
 try:
     prepare_database(url, setting("BOOTSTRAP_ADMIN_USERNAME") or "admin", setting("BOOTSTRAP_ADMIN_PASSWORD"))
     conn = connect(url)
-except Exception:
-    st.error("Database setup/connection failed. Check Neon connection details and bootstrap password (minimum 12 characters) in Secrets.")
+except Exception as exc:
+    # Classify internally; never print exception text or connection credentials.
+    detail = str(exc).lower()
+    state = getattr(exc, "sqlstate", None)
+    if "bootstrap_admin_password" in detail:
+        message = "ADMIN_PASSWORD: Set BOOTSTRAP_ADMIN_PASSWORD in Streamlit Secrets to a quoted password with at least 12 characters."
+    elif "password authentication failed" in detail or state == "28P01":
+        message = "DB_PASSWORD: Neon rejected the database password. Copy the latest full connection URL after resetting the Neon password."
+    elif "could not translate host name" in detail or "name or service not known" in detail or "failed to resolve" in detail:
+        message = "DB_HOST: The Neon hostname could not be resolved. Re-copy the full connection URL and check Neon project status."
+    elif "timeout" in detail or "timed out" in detail:
+        message = "DB_TIMEOUT: Neon did not respond in time. Check project status, then reboot the Streamlit app."
+    elif "channel binding" in detail or "ssl" in detail or "tls" in detail:
+        message = "DB_TLS: Secure connection failed. Use a freshly copied Neon connection URL including its sslmode settings."
+    elif state == "42501":
+        message = "DB_PERMISSION: The selected Neon role does not have permission to create the app tables."
+    elif "missing \"=\"" in detail or "invalid dsn" in detail or "invalid uri" in detail:
+        message = "DB_URL: DATABASE_URL must contain only the full postgresql:// URL, without psql or surrounding single quotes."
+    else:
+        # Whitelist diagnostic identifiers instead of exposing a potentially sensitive error.
+        kind = type(exc).__name__
+        safe_kind = kind if kind.isidentifier() else "UnknownError"
+        safe_state = state if isinstance(state, str) and len(state) == 5 and state.isalnum() else "none"
+        message = f"DB_SETUP: {safe_kind}; SQLSTATE={safe_state}. Share this error code for troubleshooting."
+    st.error(message)
     st.stop()
 try:
     cursor = conn.cursor()
@@ -436,7 +550,7 @@ try:
             )
 
             if uploaded_file:
-                df = pd.read_excel(uploaded_file)
+                df = read_uploaded_excel(uploaded_file)
 
                 # Normalise column names
                 df.columns = df.columns.str.strip().str.upper()
@@ -509,94 +623,18 @@ try:
                     st.error(f"❌ Missing columns: {missing}")
                 else:
                     if st.button("🚀 Upload to SQL", key="upload_sql_btn"):
-                        inserted = reactivated = skipped = 0
-                        lot_already_certs = []   # certificates that already have a lot
                         upload_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         progress = st.progress(0)
-                        total = len(df)
-
-                        for i, row in df.iterrows():
-                            report_no = str(row["REPORT"]).strip()
-
-                            cursor.execute(
-                                "SELECT report_no, stock_status, lot_no FROM buying_stock WHERE report_no = ?",
-                                (report_no,),
+                        try:
+                            inserted, reactivated, lot_already_certs = bulk_upload_stock(
+                                conn, df, upload_time, progress=progress.progress
                             )
-                            existing = cursor.fetchone()
-
-                            if existing:
-                                existing_status = existing[1]
-                                old_lot_no = existing[2]
-                                # Determine new status:
-                                # - If was RETURN and had a lot → restore to LOT
-                                # - If was RETURN and no lot → restore to LIVE
-                                # - If was LIVE or LOT → keep existing status (just update data)
-                                if existing_status == "RETURN":
-                                    new_status = "LOT" if old_lot_no else "LIVE"
-                                    clear_return = True
-                                else:
-                                    new_status = existing_status  # keep LIVE or LOT as-is
-                                    clear_return = False
-                                # Track certificates that already have a lot generated
-                                if existing_status == "LOT" and old_lot_no:
-                                    lot_already_certs.append(f"{report_no} (Lot: {old_lot_no})")
-
-                                cursor.execute(
-                                    """
-                                    UPDATE buying_stock SET
-                                        buyer_name=?, buying_date=?, party_name=?, lab=?,
-                                        diamond_type=?, shape=?, cts=?, color=?, clarity=?,
-                                        per_carat=?, amount=?,
-                                        bank_rate=?,
-                                        inr_pc=?, inr_total=?,
-                                        location=?, remark=?,
-                                        stock_status=?,
-                                        return_date=CASE WHEN ? THEN NULL ELSE return_date END,
-                                        upload_time=?
-                                    WHERE report_no=?
-                                    """,
-                                    (
-                                        str(row["BUYER NAME"]), str(row["DATE"]), str(row["PARTY NAME"]),
-                                        str(row["LAB"]), str(row["TYPE"]), str(row["SHAPE"]),
-                                        row["CTS"], str(row["COL"]), str(row["CLA"]),
-                                        row["PER CARAT"], row["AMT"],
-                                        row["BANK RATE"],
-                                        row["INR_PC"], row["INR_TOTAL"],
-                                        str(row["LOCATION"]), str(row["REMARK"]),
-                                        new_status,
-                                        bool(clear_return),
-                                        upload_time, report_no,
-                                    ),
-                                )
-                                reactivated += 1
-                            else:
-                                cursor.execute(
-                                    """
-                                    INSERT INTO buying_stock (
-                                        buyer_name, buying_date, party_name, report_no, lab,
-                                        diamond_type, shape, cts, color, clarity,
-                                        per_carat, amount, bank_rate,
-                                        inr_pc, inr_total,
-                                        location, remark, stock_status,
-                                        lot_no, lot_date, return_date, upload_time
-                                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                                    """,
-                                    (
-                                        str(row["BUYER NAME"]), str(row["DATE"]), str(row["PARTY NAME"]),
-                                        report_no, str(row["LAB"]),
-                                        str(row["TYPE"]), str(row["SHAPE"]),
-                                        row["CTS"], str(row["COL"]), str(row["CLA"]),
-                                        row["PER CARAT"], row["AMT"], row["BANK RATE"],
-                                        row["INR_PC"], row["INR_TOTAL"],
-                                        str(row["LOCATION"]), str(row["REMARK"]), "LIVE",
-                                        None, None, None, upload_time,
-                                    ),
-                                )
-                                inserted += 1
-
-                            progress.progress((i + 1) / total)
-
-                        conn.commit()
+                        except ValueError as exc:
+                            st.error(str(exc))
+                            st.stop()
+                        except Exception:
+                            st.error("Upload failed. No changes from this upload were saved. Please retry; if it repeats, contact your app administrator.")
+                            st.stop()
                         st.success(f"✅ {inserted} new stones uploaded")
                         if reactivated:
                             st.info(f"♻️ {reactivated} existing stones updated (data overwritten)")
@@ -620,25 +658,6 @@ try:
             # Header
             st.markdown(_section_header("📦", "Buying Stock"), unsafe_allow_html=True)
 
-            live_df = read_frame(
-                """
-                SELECT buyer_name, buying_date, party_name, report_no, lab,
-                       diamond_type, shape, cts, color, clarity,
-                       per_carat, amount, bank_rate, location, remark,
-                       inr_pc, inr_total, stock_status
-                FROM buying_stock
-                WHERE stock_status IN ('LIVE', 'LOT')
-                  AND (exported_at IS NULL OR exported_at = '')
-                ORDER BY id DESC
-                """,
-                conn,
-            )
-
-            # Human-readable status label
-            live_df["status_label"] = live_df["stock_status"].map(
-                {"LIVE": "Not Processed", "LOT": "Lot Generated"}
-            ).fillna(live_df["stock_status"])
-
             # Filters — 6 columns including Status
             st.markdown(_label("🔎  Filters", margin_bottom=6), unsafe_allow_html=True)
             fc1, fc2, fc3, fc4, fc5, fc6 = st.columns(6)
@@ -653,32 +672,38 @@ try:
                 options=["All", "Not Processed", "Lot Generated"],
             )
 
-            # Apply filters
-            fdf = live_df.copy()
-            for val, col in [
-                (report_filter, "report_no"),
-                (party_filter,  "party_name"),
-                (shape_filter,  "shape"),
-                (date_filter,   "buying_date"),
-                (remark_filter, "remark"),
-            ]:
-                if val:
-                    fdf = fdf[fdf[col].astype(str).str.contains(val, case=False, na=False)]
-            if status_filter != "All":
-                fdf = fdf[fdf["status_label"] == status_filter]
-
-            # Pre-filter counts (always from full live_df)
-            live_count_bs = int((live_df["stock_status"] == "LIVE").sum())
-            lot_count_bs  = int((live_df["stock_status"] == "LOT").sum())
-
-            # Metrics — styled KPI cards
-            total_stones  = len(fdf)
-            total_cts     = round(pd.to_numeric(fdf["cts"],      errors="coerce").sum(), 2) if not fdf.empty else 0
-            total_amt     = round(pd.to_numeric(fdf["amount"],   errors="coerce").sum(), 2) if not fdf.empty else 0
-            total_inr     = round(
-                (pd.to_numeric(fdf["amount"],   errors="coerce") *
-                 pd.to_numeric(fdf["bank_rate"], errors="coerce").fillna(0)).sum(), 2
-            ) if not fdf.empty else 0
+            # Filter in PostgreSQL; only one page is transferred to the browser.
+            base_where = "stock_status IN ('LIVE','LOT') AND (exported_at IS NULL OR exported_at='')"
+            clauses = [base_where]
+            params = []
+            for value, column in [(report_filter, 'report_no'), (party_filter, 'party_name'),
+                                  (shape_filter, 'shape'), (date_filter, 'buying_date'), (remark_filter, 'remark')]:
+                if value:
+                    clauses.append(f"POSITION(LOWER(?) IN LOWER(COALESCE({column},''))) > 0")
+                    params.append(value)
+            if status_filter != 'All':
+                clauses.append('stock_status=?')
+                params.append('LIVE' if status_filter == 'Not Processed' else 'LOT')
+            where_sql = ' AND '.join(clauses)
+            cursor.execute("SELECT COUNT(*), COALESCE(SUM(cts),0), COALESCE(SUM(amount),0), "
+                           "COALESCE(SUM(amount*COALESCE(bank_rate,0)),0) FROM buying_stock WHERE " + where_sql, params)
+            total_stones, total_cts, total_amt, total_inr = cursor.fetchone()
+            total_cts, total_amt, total_inr = [round(float(v),2) for v in (total_cts,total_amt,total_inr)]
+            cursor.execute("SELECT COUNT(*) FILTER (WHERE stock_status='LIVE'), "
+                           "COUNT(*) FILTER (WHERE stock_status='LOT') FROM buying_stock WHERE " + base_where)
+            live_count_bs, lot_count_bs = cursor.fetchone()
+            page_size = 200
+            page_count = max(1, (total_stones + page_size - 1)//page_size)
+            filter_signature = tuple(params) + (where_sql,)
+            if st.session_state.get('stock_filter_signature') != filter_signature:
+                st.session_state['stock_page'] = 1
+                st.session_state['stock_filter_signature'] = filter_signature
+            st.session_state['stock_page'] = min(st.session_state.get('stock_page',1), page_count)
+            page = st.number_input('Page', min_value=1, max_value=page_count, step=1, key='stock_page')
+            stock_select = "SELECT buyer_name,buying_date,party_name,report_no,lab,diamond_type,shape,cts,color,clarity,per_carat,amount,bank_rate,location,remark,inr_pc,inr_total,stock_status FROM buying_stock WHERE "
+            fdf = read_frame(stock_select + where_sql + ' ORDER BY id DESC LIMIT ? OFFSET ?', conn,
+                             params=params + [page_size,(page-1)*page_size])
+            st.caption(f"Page {page} of {page_count} · {total_stones:,} matching stones · 200 per page. Totals and Excel include all matching stones. Column sorting applies to the current page.")
 
             st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
             km1, km2, km3, km4, km5, km6 = st.columns(6)
@@ -733,66 +758,68 @@ try:
 
             st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
 
-            # Computed INR columns — use DB stored value if available, else calculate
-            display_df = fdf.copy()
-            pc  = pd.to_numeric(display_df["per_carat"], errors="coerce").fillna(0)
-            amt = pd.to_numeric(display_df["amount"],    errors="coerce").fillna(0)
-            br  = pd.to_numeric(display_df["bank_rate"], errors="coerce").fillna(0)
-            db_inr_pc    = pd.to_numeric(display_df.get("inr_pc",    pd.Series()), errors="coerce")
-            db_inr_total = pd.to_numeric(display_df.get("inr_total", pd.Series()), errors="coerce")
-            display_df["INR P/C"]   = db_inr_pc.where(db_inr_pc.notna()   & (db_inr_pc   != 0), round(pc  * br, 2))
-            display_df["INR TOTAL"] = db_inr_total.where(db_inr_total.notna() & (db_inr_total != 0), round(amt * br, 2))
+            def format_stock(source):
+                # Computed INR columns — use DB stored value if available, else calculate
+                display_df = source.copy()
+                display_df["status_label"] = display_df["stock_status"].map({"LIVE":"Not Processed", "LOT":"Lot Generated"}).fillna(display_df["stock_status"])
+                pc  = pd.to_numeric(display_df["per_carat"], errors="coerce").fillna(0)
+                amt = pd.to_numeric(display_df["amount"],    errors="coerce").fillna(0)
+                br  = pd.to_numeric(display_df["bank_rate"], errors="coerce").fillna(0)
+                db_inr_pc    = pd.to_numeric(display_df.get("inr_pc",    pd.Series()), errors="coerce")
+                db_inr_total = pd.to_numeric(display_df.get("inr_total", pd.Series()), errors="coerce")
+                display_df["INR P/C"]   = db_inr_pc.where(db_inr_pc.notna()   & (db_inr_pc   != 0), round(pc  * br, 2))
+                display_df["INR TOTAL"] = db_inr_total.where(db_inr_total.notna() & (db_inr_total != 0), round(amt * br, 2))
 
-            display_df = display_df.rename(columns={
-                "buyer_name":    "BUYER",
-                "buying_date":   "DATE",
-                "party_name":    "PARTY",
-                "report_no":     "REPORT NO",
-                "lab":           "LAB",
-                "diamond_type":  "TYPE",
-                "shape":         "SHAPE",
-                "cts":           "CTS",
-                "color":         "COLOR",
-                "clarity":       "CLARITY",
-                "per_carat":     "$P/CT",
-                "amount":        "AMT USD",
-                "bank_rate":     "BANK RATE",
-                "location":      "LOCATION",
-                "remark":        "REMARK",
-                "status_label":  "STATUS",
-            })
-            display_df.drop(["inr_pc", "inr_total", "stock_status"], axis=1, inplace=True, errors="ignore")
+                display_df = display_df.rename(columns={
+                    "buyer_name":    "BUYER",
+                    "buying_date":   "DATE",
+                    "party_name":    "PARTY",
+                    "report_no":     "REPORT NO",
+                    "lab":           "LAB",
+                    "diamond_type":  "TYPE",
+                    "shape":         "SHAPE",
+                    "cts":           "CTS",
+                    "color":         "COLOR",
+                    "clarity":       "CLARITY",
+                    "per_carat":     "$P/CT",
+                    "amount":        "AMT USD",
+                    "bank_rate":     "BANK RATE",
+                    "location":      "LOCATION",
+                    "remark":        "REMARK",
+                    "status_label":  "STATUS",
+                })
+                display_df.drop(["inr_pc", "inr_total", "stock_status"], axis=1, inplace=True, errors="ignore")
 
-            # ── Exact column order as requested ───────────────────────────────
-            _bs_col_order = [
-                "BUYER", "DATE", "PARTY", "REPORT NO", "LAB", "TYPE", "SHAPE",
-                "CTS", "COLOR", "CLARITY", "$P/CT", "AMT USD", "INR P/C",
-                "INR TOTAL", "BANK RATE", "LOCATION", "REMARK", "STATUS",
-            ]
-            display_df = display_df[[c for c in _bs_col_order if c in display_df.columns]]
+                # ── Exact column order as requested ───────────────────────────────
+                _bs_col_order = [
+                    "BUYER", "DATE", "PARTY", "REPORT NO", "LAB", "TYPE", "SHAPE",
+                    "CTS", "COLOR", "CLARITY", "$P/CT", "AMT USD", "INR P/C",
+                    "INR TOTAL", "BANK RATE", "LOCATION", "REMARK", "STATUS",
+                ]
+                display_df = display_df[[c for c in _bs_col_order if c in display_df.columns]]
 
-            # ── DATE ko real date dtype banao taaki sorting text ki jagah ──────
-            # chronological ho (column header pe click karke ascending/descending)
-            if "DATE" in display_df.columns:
-                display_df["DATE"] = pd.to_datetime(
-                    display_df["DATE"], format="%d-%m-%Y", errors="coerce"
-                )
+                # ── DATE ko real date dtype banao taaki sorting text ki jagah ──────
+                # chronological ho (column header pe click karke ascending/descending)
+                if "DATE" in display_df.columns:
+                    display_df["DATE"] = pd.to_datetime(
+                        display_df["DATE"], format="%d-%m-%Y", errors="coerce"
+                    )
 
-            # ── Excel download for filtered Buying Stock table ───────────────────
-            import io as _bs_io
-            _bs_excel_buf = _bs_io.BytesIO()
-            display_df.to_excel(_bs_excel_buf, index=False, engine="openpyxl")
-            _bs_excel_buf.seek(0)
+                return display_df
 
-            bs_dl1, bs_dl2 = st.columns([5, 1])
-            bs_dl2.download_button(
-                label="⬇ Excel",
-                data=_bs_excel_buf,
-                file_name=f"Buying_Stock_{datetime.now().strftime('%d%m%Y')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="buying_stock_excel_dl",
-                use_container_width=True,
-            )
+            display_df = format_stock(fdf)
+
+            # Build a full filtered export only when requested, not on every click.
+            if st.button("Prepare Excel — all matching stones", key="prepare_stock_excel"):
+                import io
+                with st.spinner("Preparing Excel..."):
+                    export_df = read_frame(stock_select + where_sql + ' ORDER BY id DESC', conn, params=params)
+                    export_buffer = io.BytesIO()
+                    format_stock(export_df).to_excel(export_buffer, index=False, engine="openpyxl")
+                st.download_button("Download Excel", data=export_buffer.getvalue(),
+                    file_name=f"Buying_Stock_{datetime.now().strftime('%d%m%Y')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="buying_stock_excel_dl", on_click="ignore")
 
             st.dataframe(
                 display_df,
@@ -809,7 +836,7 @@ try:
     if tab3:
         st.markdown(_section_header("🏷", "Lot Generation"), unsafe_allow_html=True)
 
-        lot_inp1, lot_inp2, lot_inp3 = st.tabs(["📂 Excel Upload", "📋 Input IGI No", "📊 Master Lot Data"])
+        lot_section = st.radio("Section", ["📂 Excel Upload", "📋 Input IGI No", "📊 Master Lot Data"], horizontal=True, key="lot_section")
 
         # ── shared helper ────────────────────────────────────────────────────────
         def normalize_cert(cert: str) -> str:
@@ -1146,7 +1173,7 @@ try:
                             f'</ul></div>',
                             unsafe_allow_html=True,
                         )
-        with lot_inp1:
+        if lot_section == '📂 Excel Upload':
             st.markdown(_label("📂  Excel must have REPORT and MEMO NO columns", margin_bottom=12), unsafe_allow_html=True)
 
             lot_file = st.file_uploader(
@@ -1157,7 +1184,7 @@ try:
             xl_memo_dict:   dict[str, str] = {}
 
             if lot_file:
-                lot_df = pd.read_excel(lot_file)
+                lot_df = read_uploaded_excel(lot_file)
                 lot_df.columns = lot_df.columns.str.strip().str.upper()
                 lot_df = lot_df.fillna("")
                 st.dataframe(lot_df, use_container_width=True)
@@ -1191,7 +1218,7 @@ try:
             _render_today_lots("lot_table_editor_xl", "generate_txt_btn_xl", "download_txt_lot_btn_xl")
 
         # ── SUB-TAB 2: Copy-Paste Text ───────────────────────────────────────────
-        with lot_inp2:
+        if lot_section == '📋 Input IGI No':
             st.markdown(_label("📋  Paste certificate numbers and one memo no for all", margin_bottom=12), unsafe_allow_html=True)
 
             cp_col1, cp_col2 = st.columns([3, 1])
@@ -1253,7 +1280,7 @@ try:
             _render_today_lots("lot_table_editor_cp", "generate_txt_btn_cp", "download_txt_lot_btn_cp")
 
         # ── SUB-TAB 3: Master Lot Generation Data ───────────────────────────────
-        with lot_inp3:
+        if lot_section == '📊 Master Lot Data':
             st.markdown(_label("📊  All lots generated before today — tick rows → generate TXT", margin_bottom=12), unsafe_allow_html=True)
 
             today_str = datetime.now().strftime("%Y-%m-%d")
@@ -1418,10 +1445,10 @@ try:
                     return "LG" + c
                 return c
 
-            ret_sub1, ret_sub2 = st.tabs(["🔴 Return", "🔄 Cancel Lot → Back to Buying Stock"])
+            return_section = st.radio("Section", ["🔴 Return", "🔄 Cancel Lot → Back to Buying Stock"], horizontal=True, key="return_section")
 
             # ── SUB-TAB 1: Normal Return ─────────────────────────────────────────
-            with ret_sub1:
+            if return_section == '🔴 Return':
                 st.info("Paste REPORT numbers line by line")
 
                 return_text = st.text_area("Paste REPORT Numbers", key="return_textbox")
@@ -1486,7 +1513,7 @@ try:
                 st.dataframe(return_df, use_container_width=True, height=620)
 
             # ── SUB-TAB 2: LOT CANCEL → BUYING STOCK (LIVE) ──────────────────────
-            with ret_sub2:
+            if return_section == '🔄 Cancel Lot → Back to Buying Stock':
                 st.markdown(
                     '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #22c55e;'
                     'border-radius:8px;padding:14px 18px;margin-bottom:20px;">'
@@ -1994,16 +2021,16 @@ try:
           if tab5:
             st.markdown(_section_header("⚙️", "Admin Panel"), unsafe_allow_html=True)
 
-            adm1, adm2, adm3, adm4, adm5 = st.tabs([
+            admin_section = st.radio("Section", [
                 "📥 Full Database Download",
                 "🗑 Delete by Certificate",
                 "✏️ Edit Row by Certificate",
                 "👥 User Management",
                 "🔀 Shape Mapping",
-            ])
+            ], horizontal=True, key="admin_section")
 
             # ── ADMIN SUB-TAB 1: FULL DB DOWNLOAD ─────────────────────────────────
-            with adm1:
+            if admin_section == '📥 Full Database Download':
                 st.markdown(_label("📥  Export entire database as Excel", margin_bottom=16), unsafe_allow_html=True)
 
                 if st.button("📥 Generate Database Export", key="full_db_generate_btn", use_container_width=True):
@@ -2043,7 +2070,7 @@ try:
                     )
 
             # ── ADMIN SUB-TAB 2: DELETE BY CERTIFICATE ────────────────────────────
-            with adm2:
+            if admin_section == '🗑 Delete by Certificate':
                 st.markdown(_label("🗑  Paste certificate numbers to permanently delete", margin_bottom=16), unsafe_allow_html=True)
 
                 del_text = st.text_area(
@@ -2088,7 +2115,7 @@ try:
                         st.rerun()
 
             # ── ADMIN SUB-TAB 3: EDIT ROW BY CERTIFICATE ──────────────────────────
-            with adm3:
+            if admin_section == '✏️ Edit Row by Certificate':
                 st.markdown(
                     '<p style="font-size:12px;color:#737373;'
                     'margin-bottom:16px;">'
@@ -2136,7 +2163,7 @@ try:
                 NUMERIC_COLS = {"CTS", "PER CARAT", "AMT", "BANK RATE"}
 
                 if edit_file:
-                    edit_df = pd.read_excel(edit_file)
+                    edit_df = read_uploaded_excel(edit_file)
                     edit_df.columns = edit_df.columns.str.strip().str.upper()
                     edit_df = edit_df.fillna("")
 
@@ -2241,7 +2268,7 @@ try:
                                 st.rerun()
 
             # ── ADMIN SUB-TAB 4: USER MANAGEMENT ──────────────────────────────────
-            with adm4:
+            if admin_section == '👥 User Management':
                 st.markdown(_label("👥  Manage users", margin_bottom=16), unsafe_allow_html=True)
 
                 # Current users list
@@ -2314,7 +2341,7 @@ try:
                         st.rerun()
 
         # ── ADMIN SUB-TAB 5: SHAPE MAPPING ────────────────────────────────────
-            with adm5:
+            if admin_section == '🔀 Shape Mapping':
                 st.markdown(_label("🔀  Shape Alias Mapping — alias entered in Excel → saved as mapped value in DB", margin_bottom=16), unsafe_allow_html=True)
 
                 # ── Current mappings table ─────────────────────────────────────

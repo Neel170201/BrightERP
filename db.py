@@ -4,6 +4,8 @@ import hmac
 import secrets
 import pandas as pd
 import psycopg
+from psycopg_pool import ConnectionPool
+from functools import lru_cache
 
 
 def hash_pw(password):
@@ -72,8 +74,23 @@ class Cursor:
 
 
 class Connection:
-    def __init__(self, raw):
+    def __init__(self, raw, pool=None):
         self.raw = raw
+        self.pool = pool
+        self.closed = False
+
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        if self.pool is None:
+            self.raw.close()
+            return
+        try:
+            if not self.raw.closed:
+                self.raw.rollback()
+        finally:
+            self.pool.putconn(self.raw)
 
     def cursor(self):
         return Cursor(self.raw.cursor())
@@ -82,8 +99,20 @@ class Connection:
         return getattr(self.raw, name)
 
 
+@lru_cache(maxsize=4)
+def get_pool(url):
+    return ConnectionPool(
+        conninfo=url, min_size=0, max_size=10, timeout=30,
+        max_idle=60, max_lifetime=1800,
+        check=ConnectionPool.check_connection,
+        kwargs={"sslmode": "require", "connect_timeout": 20, "prepare_threshold": None},
+        open=True,
+    )
+
+
 def connect(url):
-    return Connection(psycopg.connect(url, sslmode='require', connect_timeout=20, prepare_threshold=None))
+    pool = get_pool(url)
+    return Connection(pool.getconn(), pool)
 
 
 def read_frame(query, conn, params=None):
@@ -103,6 +132,7 @@ def initialize(url, admin_username='admin', admin_password='', seed_admin=True):
         cur.execute('CREATE INDEX IF NOT EXISTS idx_stock_status ON buying_stock (stock_status)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_stock_lot ON buying_stock (lot_no)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_stock_export ON buying_stock (exported_at)')
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_active_stock_id ON buying_stock (id DESC) WHERE stock_status IN ('LIVE','LOT') AND (exported_at IS NULL OR exported_at='')")
         # Serialize only bootstrap so concurrent worker starts cannot create conflicting admins.
         cur.execute('SELECT pg_advisory_xact_lock(728190401)')
         cur.execute('SELECT COUNT(*) FROM users')
