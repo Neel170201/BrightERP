@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from db import connect, initialize, read_frame, hash_pw, verify_pw, fingerprint
 import os
+from html import escape
 from zoneinfo import ZoneInfo
 from datetime import datetime as _datetime, timedelta
 
@@ -11,157 +12,67 @@ class datetime(_datetime):
         return super().now(tz or ZoneInfo("Asia/Kolkata"))
 
 # ── PAGE CONFIG (must be first st call) ───────────────────────────────────
-st.set_page_config(page_title="BRIGHT TRADING INDIA LLP ERP", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Bright • Diamond ERP", page_icon="💎", layout="wide", initial_sidebar_state="collapsed")
 
-# ── MINIMAL LIGHT THEME (monochrome) ──────────────────────────────────────
+# ── BRIGHT / NAVY & TEAL INTERFACE ──────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
-:root {
-    --bg: #ffffff;
-    --surface: #fafafa;
-    --border: #e5e5e5;
-    --border-strong: #d4d4d4;
-    --text: #171717;
-    --muted: #737373;
-    --accent: #171717;
-}
-
-html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"],
-[data-testid="stHeader"], [data-testid="block-container"], .block-container {
-    background-color: var(--bg) !important;
-    color: var(--text) !important;
-    font-family: 'Inter', -apple-system, sans-serif !important;
-}
-[data-testid="stSidebar"] { background-color: var(--surface) !important; }
-[data-testid="stHeader"]  { background-color: transparent !important; }
-.block-container { padding-top: 2rem !important; max-width: 1280px; }
-
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-
-/* KPI cards: flat, number + label only */
-.kpi-card {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px 18px;
-    text-align: left;
-}
-.kpi-icon  { display: none; }
-.kpi-label { font-size: 12px; color: var(--muted); margin: 0 0 4px; }
-.kpi-value { font-size: 24px; font-weight: 600; color: var(--text); margin: 0; letter-spacing: -0.01em; }
-.kpi-sub   { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
-.kpi-up    { color: #15803d; font-weight: 600; }
-.kpi-down  { color: #b91c1c; font-weight: 600; }
-
-/* Section header: title + one hairline */
-.section-header { display: flex; align-items: center; margin-bottom: 8px; }
-.section-header .icon  { display: none; }
-.section-header .title { font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
-.section-divider { height: 1px; background: var(--border); margin-bottom: 20px; }
-
-/* Tables and charts */
-[data-testid="stPlotlyChart"], [data-testid="stDataFrame"] {
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
-    overflow: hidden;
-}
-
-/* Buttons: outline by default, solid black for primary */
-.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] button {
-    border-radius: 6px !important;
-    border: 1px solid var(--border-strong) !important;
-    background: var(--bg) !important;
-    color: var(--text) !important;
-    box-shadow: none !important;
-    font-weight: 500 !important;
-    transition: border-color 0.15s ease, background 0.15s ease !important;
-}
-.stButton button:hover, .stDownloadButton button:hover, [data-testid="stFormSubmitButton"] button:hover {
-    border-color: var(--accent) !important;
-    background: var(--surface) !important;
-    color: var(--text) !important;
-}
-.stButton button[kind="primary"], .stDownloadButton button[kind="primary"],
-[data-testid="stFormSubmitButton"] button[kind="primary"] {
-    background: var(--accent) !important;
-    border-color: var(--accent) !important;
-    color: #ffffff !important;
-}
-.stButton button[kind="primary"] p, .stDownloadButton button[kind="primary"] p,
-[data-testid="stFormSubmitButton"] button[kind="primary"] p { color: #ffffff !important; }
-.stButton button[kind="primary"]:hover, .stDownloadButton button[kind="primary"]:hover,
-[data-testid="stFormSubmitButton"] button[kind="primary"]:hover {
-    background: #404040 !important;
-    border-color: #404040 !important;
-    color: #ffffff !important;
-}
-.stButton button:focus-visible, .stDownloadButton button:focus-visible {
-    outline: 2px solid var(--accent) !important;
-    outline-offset: 2px;
-}
-
-/* Inputs */
-[data-testid="stTextInput"] input,
-[data-testid="stTextArea"] textarea,
-[data-testid="stDateInput"] input,
-[data-testid="stNumberInput"] input,
-[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
-    border-radius: 6px !important;
-    border: 1px solid var(--border-strong) !important;
-    background: var(--bg) !important;
-    color: var(--text) !important;
-    box-shadow: none !important;
-}
-[data-testid="stTextInput"] input:focus,
-[data-testid="stTextArea"] textarea:focus,
-[data-testid="stDateInput"] input:focus,
-[data-testid="stNumberInput"] input:focus {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 1px var(--accent) !important;
-}
-
-/* Tabs: text with an underline on the active one */
-[data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid var(--border); }
-[data-baseweb="tab"] {
-    background: transparent !important;
-    border-radius: 0 !important;
-    color: var(--muted) !important;
-    padding-left: 0 !important; padding-right: 0 !important;
-}
-[aria-selected="true"][data-baseweb="tab"] {
-    color: var(--text) !important;
-    background: transparent !important;
-    border-bottom: 2px solid var(--accent) !important;
-}
-[data-baseweb="tab-highlight"] { background: var(--accent) !important; }
-
-/* Alerts and expanders */
-[data-testid="stAlert"] { border-radius: 6px !important; }
-[data-testid="stExpander"] { border: 1px solid var(--border) !important; border-radius: 8px !important; }
-</style>
-""", unsafe_allow_html=True)
-
-# ── LOAD CSS ──────────────────────────────────────────────────────────────
-try:
-    with open("style.css", encoding="utf-8") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-except FileNotFoundError:
-    pass
-
-# ── BORDERED CONTAINER (st.container(border=True)) ────────────────────────
-st.markdown("""
-<style>
-[data-testid="stVerticalBlockBorderWrapper"] {
-    border: 1px solid #e5e5e5 !important;
-    border-radius: 8px !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-}
+:root { --bg:#f4f7fb; --surface:#ffffff; --border:#e1e8f0; --border-strong:#cbd5e1; --text:#15263f; --muted:#64748b; --accent:#087f8c; }
+html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] { background:var(--bg); color:var(--text); font-family:Inter,"Segoe UI",sans-serif; }
+[data-testid="stHeader"] {background:transparent;}
+.block-container {padding-top:2rem; padding-bottom:3rem; max-width:1440px;}
+h1,h2,h3 {color:var(--text); letter-spacing:-.035em;}
+[data-testid="stSidebar"] {background:#edf3f8; border-right:1px solid var(--border);}
+[data-testid="stVerticalBlockBorderWrapper"], [data-testid="stVerticalBlock"][style*="border: 1px"] {background:white; border-radius:18px; border-color:var(--border); box-shadow:0 4px 20px #15263f05;}
+.brand-header {display:flex;align-items:center;gap:14px;padding:12px 0 20px;}
+.brand-mark {display:grid;place-items:center;width:48px;height:48px;background:#102842;color:#7be0dc;border-radius:14px;font-size:30px;flex-shrink:0;}
+.brand-name {font-size:16px;font-weight:750;letter-spacing:.04em;margin:0;}
+.breadcrumb {font-size:12px;color:var(--muted);margin-top:4px;}
+.hero {position:relative;overflow:hidden;background:linear-gradient(115deg,#102842 0%,#163b54 68%,#14656c 100%);border-radius:24px;padding:34px 38px;margin:4px 0 26px;color:white;}
+.hero:after {content:"◇";position:absolute;right:35px;top:-66px;font-size:290px;line-height:1;color:#ffffff0b;pointer-events:none;}
+.eyebrow {font-size:11px;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:#88dcd8;margin-bottom:14px;}
+.hero h1 {font-size:34px;font-weight:700;line-height:1.2;color:white;margin:0 0 10px;padding:0;}
+.hero p {color:#cfdee9;font-size:14px;margin:0;max-width:640px;}
+.hero-footer {display:flex;gap:10px;flex-wrap:wrap;margin-top:24px;}
+.hero-chip {border:1px solid #ffffff28;border-radius:30px;padding:6px 12px;font-size:11px;color:#e1f1f7;background:#ffffff08;}
+.login-brand {text-align:center;padding:14px 4px 20px;}
+.login-brand .brand-mark {margin:0 auto 18px;width:60px;height:60px;font-size:38px;}
+.login-brand h2 {font-size:24px;margin:8px 0;}
+.login-brand p {font-size:13px;color:var(--muted);}
+.module-card {min-height:144px;padding:8px 4px 0;}
+.module-icon {display:inline-flex;align-items:center;justify-content:center;background:var(--tint,#e6f5f4);width:45px;height:45px;border-radius:13px;font-size:23px;margin-bottom:15px;}
+.module-title {font-size:16px;font-weight:700;color:var(--text);margin:0 0 6px;}
+.module-copy {font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 10px;}
+.kpi-card {background:white;border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:15px;padding:18px 16px;min-height:148px;box-shadow:0 4px 16px #15263f04;}
+.kpi-icon {display:block;font-size:19px;margin-bottom:10px;}
+.kpi-label {font-size:10px;letter-spacing:.07em;font-weight:650;color:var(--muted);margin:0 0 6px;}
+.kpi-value {font-size:clamp(19px,2vw,29px);font-weight:750;color:var(--text);margin:0;letter-spacing:-.035em;overflow-wrap:anywhere;}
+.kpi-sub {font-size:11px;color:var(--muted);margin:6px 0 0;}
+.kpi-up {color:#15803d;} .kpi-down {color:#b91c1c;}
+.section-header {display:flex;align-items:center;gap:10px;margin:12px 0;}
+.section-header .icon {background:#e5f3f3;padding:9px;border-radius:12px;font-size:20px;}
+.section-header .title {font-size:24px;font-weight:700;letter-spacing:-.03em;color:var(--text);}
+.section-divider {height:1px;background:var(--border);margin-bottom:22px;}
+.stButton button,.stDownloadButton button,[data-testid="stFormSubmitButton"] button {border-radius:10px;min-height:42px;border:1px solid var(--border-strong);background:white;color:#213c55;font-weight:600;transition:background .15s,border-color .15s;}
+.stButton button:hover,.stDownloadButton button:hover {border-color:#087f8c;color:#066975;background:#effafa;}
+button[kind="primary"] {background:#087f8c!important;border-color:#087f8c!important;color:white!important;}
+button[kind="primary"] p {color:white!important;}
+button[kind="primary"]:hover {background:#076b76!important;}
+button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
+[data-testid="stTextInput"] [data-baseweb="input"], [data-testid="stNumberInput"] [data-baseweb="input"], [data-testid="stDateInput"] [data-baseweb="input"], [data-baseweb="select"] > div, [data-testid="stTextArea"] textarea {border-radius:10px;background:white;color:var(--text);border-color:var(--border-strong);}
+[data-testid="stWidgetLabel"] p {font-size:12px;font-weight:600;color:#52647b;}
+[data-testid="stDataFrame"], [data-testid="stDataEditor"], [data-testid="stPlotlyChart"] {border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+[data-testid="stFileUploaderDropzone"] {background:#edf7f9;border:1px dashed #76b8c0;border-radius:16px;padding:26px;}
+[data-baseweb="tab-list"] {gap:8px;border-bottom:1px solid var(--border);}
+[data-baseweb="tab"] {border-radius:9px 9px 0 0;padding:10px 16px;color:var(--muted);}
+[data-baseweb="tab"][aria-selected="true"] {background:#e5f3f3;color:#076b76;}
+[data-baseweb="tab-highlight"] {background:#087f8c;}
+[data-testid="stExpander"] {background:white;border-color:var(--border);border-radius:12px;}
+[data-testid="stAlert"] {border-radius:12px;}
+[data-testid="stMetric"] {background:white;border:1px solid var(--border);border-radius:14px;padding:16px;}
+@media(max-width:700px) {.block-container {padding:1rem;} .hero {padding:26px 22px;} .hero h1 {font-size:26px;} .brand-name {font-size:12px;} .module-card {min-height:120px;} .kpi-card {min-height:125px;} }
+@media(prefers-reduced-motion:reduce) {* {transition:none!important;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -337,19 +248,19 @@ try:
     def login_screen():
         _, col, _ = st.columns([1, 1.3, 1])
         with col:
-            st.markdown('<div style="height:64px;"></div>', unsafe_allow_html=True)
+            st.markdown('<div style="height:24px;"></div>', unsafe_allow_html=True)
             with st.container(border=True):
                 st.markdown(
-                    '<div style="text-align:center;padding:10px 4px 22px;">'
-                    '<p style="font-size:20px;font-weight:600;color:#171717;margin:0 0 6px;">BRIGHT TRADING INDIA LLP</p>'
-                    '<p style="font-size:13px;color:#737373;margin:0;">LGD Live Stock ERP &middot; Sign in to continue</p>'
-                    '</div>',
+                    '<div class="login-brand"><div class="brand-mark">◇</div>'
+                    '<div class="eyebrow" style="color:#087f8c">BRIGHT TRADING INDIA LLP</div>'
+                    '<h2>Welcome back</h2>'
+                    '<p>Sign in to your diamond operations workspace.</p></div>',
                     unsafe_allow_html=True,
                 )
                 username = st.text_input("USERNAME", key="login_user", placeholder="Enter username")
                 password = st.text_input("PASSWORD", key="login_pass", placeholder="Enter password", type="password")
                 st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-                if st.button("🔐 Sign In", key="login_btn", use_container_width=True):
+                if st.button("🔐 Sign In", key="login_btn", type="primary", use_container_width=True):
                     role = check_login(username.strip(), password.strip())
                     if role:
                         st.session_state["logged_in"] = True
@@ -451,18 +362,17 @@ try:
             _icon, _lbl = _page_labels.get(st.session_state["page"], ("💎", "Home"))
             _crumb = f"Home / {_lbl}"
         st.markdown(
-            '<div style="border-bottom:1px solid #e5e5e5;height:64px;display:flex;'
-            'flex-direction:column;justify-content:center;">'
-            '<p style="font-size:16px;font-weight:600;color:#171717;margin:0;">BRIGHT TRADING INDIA LLP</p>'
-            f'<p style="font-size:12px;color:#737373;margin:2px 0 0;">{_crumb}</p>'
-            '</div>',
+            '<div class="brand-header"><div class="brand-mark">◇</div><div>'
+            '<div class="brand-name">BRIGHT TRADING INDIA LLP</div>'
+            f'<div class="breadcrumb">Diamond operations &nbsp; / &nbsp; {escape(_crumb)}</div>'
+            '</div></div>',
             unsafe_allow_html=True,
         )
     with h_col2:
         with st.container(border=True):
             st.markdown(
-                f'<p style="font-size:13px;color:#171717;margin:0 0 2px;font-weight:500;">{st.session_state["username"]}</p>'
-                f'<p style="font-size:12px;color:#737373;margin:0 0 8px;">{st.session_state["role"]}</p>',
+                f'<p style="font-size:13px;color:#171717;margin:0 0 2px;font-weight:500;">{escape(str(st.session_state["username"]))}</p>'
+                f'<p style="font-size:12px;color:#737373;margin:0 0 8px;">{escape(str(st.session_state["role"]))}</p>',
                 unsafe_allow_html=True,
             )
             if st.button("Sign Out", key="logout_btn", use_container_width=True):
@@ -484,17 +394,19 @@ try:
     # ── HOME GRID (Lattice-style card launcher) ────────────────────────────────
     if st.session_state["page"] == "home":
         st.markdown(
-            '<div style="text-align:center;padding:24px 0 28px;">'
-            '<p style="font-size:22px;font-weight:600;color:#171717;margin:0 0 4px;">BRIGHT TRADING INDIA LLP</p>'
-            '<p style="font-size:13px;color:#737373;margin:0;">Live Stock ERP</p>'
-            '</div>',
+            '<div class="hero"><div class="eyebrow">YOUR OPERATIONS, CONNECTED</div>'
+            f'<h1>Welcome, {escape(str(st.session_state["username"]))}.</h1>'
+            '<p>From buying to export. Keep every stone, every lot and every next step in view.</p>'
+            '<div class="hero-footer"><span class="hero-chip">Diamond inventory ERP</span>'
+            f'<span class="hero-chip">{datetime.now().strftime("%d %b %Y")} · IST</span>'
+            f'<span class="hero-chip">{len(_nav)} available modules</span></div></div>',
             unsafe_allow_html=True,
         )
 
         _search = st.text_input(
             "Search for Actions",
             key="home_search",
-            placeholder="Search actions",
+            placeholder="Search your workspace — stock, lots, exports…",
             label_visibility="collapsed",
         )
 
@@ -505,7 +417,16 @@ try:
             if _search.strip().lower() in label.lower()
         ] if _search.strip() else _nav
 
-        _cards_per_row = 4
+        st.markdown(_section_header("◇", "Your workspace"), unsafe_allow_html=True)
+        _module_details = {
+            "upload": ("#e6f5f4", "Import buying files and review incoming stones."),
+            "stock": ("#eaf0ff", "Explore inventory, filter stones and review values."),
+            "lot": ("#f2edff", "Create lots and follow your processing workflow."),
+            "return": ("#fff0ed", "Manage returned stones and review return records."),
+            "export": ("#e6f4fc", "Prepare shipments and manage exported stones."),
+            "admin": ("#fff5de", "Manage users, access and shape mappings."),
+        }
+        _cards_per_row = 3
         for _row_start in range(0, len(_filtered), _cards_per_row):
             _row_items = _filtered[_row_start:_row_start + _cards_per_row]
             _cols = st.columns(_cards_per_row)
@@ -515,12 +436,13 @@ try:
                     with _col:
                         with st.container(border=True):
                             st.markdown(
-                                f'<div style="padding:10px 4px 6px;">'
-                                f'<p style="font-size:14px;color:#171717;font-weight:500;margin:0;">{_label}</p>'
-                                f'</div>',
+                                f'<div class="module-card" style="--tint:{_module_details[_key][0]}">'
+                                f'<div class="module-icon">{_icon}</div>'
+                                f'<p class="module-title">{_label}</p>'
+                                f'<p class="module-copy">{_module_details[_key][1]}</p></div>',
                                 unsafe_allow_html=True,
                             )
-                            if st.button("Open", key=f"nav_card_{_key}", use_container_width=True):
+                            if st.button(f"Open {_label} →", key=f"nav_card_{_key}", use_container_width=True):
                                 st.session_state["page"] = _key
                                 st.rerun()
         if not _filtered:
@@ -541,7 +463,7 @@ try:
     # ══════════════════════════════════════════════════════════════════════════
     if not is_video:
         if tab1:
-            st.subheader("📂 Upload Buying File")
+            st.markdown(_section_header("📂", "Upload Buying File"), unsafe_allow_html=True)
 
             uploaded_file = st.file_uploader(
                 "Upload Buying Excel File (.xlsx)",
