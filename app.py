@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from db import connect, initialize, read_frame, hash_pw, verify_pw, fingerprint
 import os
+import base64
+from pathlib import Path
 from html import escape
 from zoneinfo import ZoneInfo
 from datetime import datetime as _datetime, timedelta
@@ -10,6 +12,24 @@ class datetime(_datetime):
     @classmethod
     def now(cls, tz=None):
         return super().now(tz or ZoneInfo("Asia/Kolkata"))
+
+# ── COMPANY BRAND ASSETS ──────────────────────────────────────────────────
+COMPANY_LOGO_PATH = Path("/mnt/data/ghostwriter_images/context/4628934e-ff84-5d2f-8fd1-1765981ca067.jpg")
+
+def _file_to_data_uri(path: Path) -> str:
+    try:
+        suffix = path.suffix.lower()
+        mime = "image/png" if suffix == ".png" else "image/jpeg"
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        return f"data:{mime};base64,{encoded}"
+    except Exception:
+        return ""
+
+COMPANY_LOGO_URI = _file_to_data_uri(COMPANY_LOGO_PATH)
+BRAND_MARK_HTML = (
+    f'<div class="brand-mark"><img src="{COMPANY_LOGO_URI}" alt="Bright Trading logo"></div>'
+    if COMPANY_LOGO_URI else '<div class="brand-mark">◇</div>'
+)
 
 # ── PAGE CONFIG (must be first st call) ───────────────────────────────────
 st.set_page_config(page_title="Bright • Diamond ERP", page_icon="💎", layout="wide", initial_sidebar_state="collapsed")
@@ -20,24 +40,28 @@ st.markdown("""
 
 :root { --bg:#f4f7fb; --surface:#ffffff; --border:#e1e8f0; --border-strong:#cbd5e1; --text:#15263f; --muted:#64748b; --accent:#087f8c; }
 html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] { background:var(--bg); color:var(--text); font-family:Inter,"Segoe UI",sans-serif; }
+[data-testid="stAppViewContainer"] {position:relative; overflow-x:hidden;}
+[data-testid="stAppViewContainer"]::before {content:""; position:fixed; inset:0; background:url("__COMPANY_LOGO__") no-repeat center 58%; background-size:min(36vw, 420px); opacity:0.045; pointer-events:none; z-index:0;}
+[data-testid="stAppViewContainer"] > .main {position:relative; z-index:1;}
 [data-testid="stHeader"] {background:transparent;}
 .block-container {padding-top:2rem; padding-bottom:3rem; width:94% !important; max-width:1500px !important; margin-left:auto !important; margin-right:auto !important; padding-left:1.5rem !important; padding-right:1.5rem !important;}
 h1,h2,h3 {color:var(--text); letter-spacing:-.035em;}
 [data-testid="stSidebar"] {background:#edf3f8; border-right:1px solid var(--border);}
 [data-testid="stVerticalBlockBorderWrapper"], [data-testid="stVerticalBlock"][style*="border: 1px"] {background:white; border-radius:18px; border-color:var(--border); box-shadow:0 4px 20px #15263f05;}
 .brand-header {display:flex;align-items:center;gap:14px;padding:12px 0 20px;}
-.brand-mark {display:grid;place-items:center;width:48px;height:48px;background:#102842;color:#7be0dc;border-radius:14px;font-size:30px;flex-shrink:0;}
+.brand-mark {display:flex;align-items:center;justify-content:center;width:50px;height:50px;background:#0f2236;border-radius:14px;overflow:hidden;flex-shrink:0;box-shadow:0 6px 16px rgba(16,40,66,.10);}
+.brand-mark img {width:100%;height:100%;object-fit:cover;display:block;}
 .brand-name {font-size:16px;font-weight:750;letter-spacing:.04em;margin:0;}
 .breadcrumb {font-size:12px;color:var(--muted);margin-top:4px;}
 .hero {position:relative;overflow:hidden;background:linear-gradient(115deg,#102842 0%,#163b54 68%,#14656c 100%);border-radius:24px;padding:34px 38px;margin:4px 0 26px;color:white;}
-.hero:after {content:"◇";position:absolute;right:35px;top:-66px;font-size:290px;line-height:1;color:#ffffff0b;pointer-events:none;}
+.hero:after {content:"";position:absolute;right:22px;top:-20px;width:260px;height:260px;background:url("__COMPANY_LOGO__") center/contain no-repeat;opacity:.10;pointer-events:none;filter:brightness(1.3);}
 .eyebrow {font-size:11px;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:#88dcd8;margin-bottom:14px;}
 .hero h1 {font-size:34px;font-weight:700;line-height:1.2;color:white;margin:0 0 10px;padding:0;}
 .hero p {color:#cfdee9;font-size:14px;margin:0;max-width:640px;}
 .hero-footer {display:flex;gap:10px;flex-wrap:wrap;margin-top:24px;}
 .hero-chip {border:1px solid #ffffff28;border-radius:30px;padding:6px 12px;font-size:11px;color:#e1f1f7;background:#ffffff08;}
 .login-brand {text-align:center;padding:14px 4px 20px;}
-.login-brand .brand-mark {margin:0 auto 18px;width:60px;height:60px;font-size:38px;}
+.login-brand .brand-mark {margin:0 auto 18px;width:72px;height:72px;}
 .login-brand h2 {font-size:24px;margin:8px 0;}
 .login-brand p {font-size:13px;color:var(--muted);}
 .module-card {min-height:96px;padding:0 2px;}
@@ -74,7 +98,7 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 @media(max-width:700px) {.block-container {width:100% !important; padding:1rem !important;} .hero {padding:26px 22px;} .hero h1 {font-size:26px;} .brand-name {font-size:12px;} .module-card {min-height:0;} .kpi-card {min-height:125px;} }
 @media(prefers-reduced-motion:reduce) {* {transition:none!important;}}
 </style>
-""", unsafe_allow_html=True)
+""".replace("__COMPANY_LOGO__", COMPANY_LOGO_URI), unsafe_allow_html=True)
 
 # ── SHARED UI HELPERS ───────────────────────────────────────────────────────
 def _section_header(icon, title):
@@ -251,7 +275,7 @@ try:
             st.markdown('<div style="height:24px;"></div>', unsafe_allow_html=True)
             with st.container(border=True):
                 st.markdown(
-                    '<div class="login-brand"><div class="brand-mark">◇</div>'
+                    '<div class="login-brand">' + BRAND_MARK_HTML +
                     '<div class="eyebrow" style="color:#087f8c">BRIGHT TRADING INDIA LLP</div>'
                     '<h2>Welcome back</h2>'
                     '<p>Sign in to your diamond operations workspace.</p></div>',
@@ -362,7 +386,7 @@ try:
             _icon, _lbl = _page_labels.get(st.session_state["page"], ("💎", "Home"))
             _crumb = f"Home / {_lbl}"
         st.markdown(
-            '<div class="brand-header"><div class="brand-mark">◇</div><div>'
+            '<div class="brand-header">' + BRAND_MARK_HTML + '<div>'
             '<div class="brand-name">BRIGHT TRADING INDIA LLP</div>'
             f'<div class="breadcrumb">Diamond operations &nbsp; / &nbsp; {escape(_crumb)}</div>'
             '</div></div>',
