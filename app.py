@@ -40,10 +40,10 @@ h1,h2,h3 {color:var(--text); letter-spacing:-.035em;}
 .login-brand .brand-mark {margin:0 auto 18px;width:60px;height:60px;font-size:38px;}
 .login-brand h2 {font-size:24px;margin:8px 0;}
 .login-brand p {font-size:13px;color:var(--muted);}
-.module-card {min-height:144px;padding:8px 4px 0;}
-.module-icon {display:inline-flex;align-items:center;justify-content:center;background:var(--tint,#e6f5f4);width:45px;height:45px;border-radius:13px;font-size:23px;margin-bottom:15px;}
-.module-title {font-size:16px;font-weight:700;color:var(--text);margin:0 0 6px;}
-.module-copy {font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 10px;}
+.module-card {min-height:96px;padding:0 2px;}
+.module-icon {display:inline-flex;align-items:center;justify-content:center;background:var(--tint,#e6f5f4);width:32px;height:32px;border-radius:9px;font-size:18px;margin-bottom:8px;}
+.module-title {font-size:14px;font-weight:700;color:var(--text);margin:0 0 6px;}
+.module-copy {font-size:12px;line-height:1.4;color:var(--muted);margin:0 0 4px;}
 .kpi-card {background:white;border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:15px;padding:18px 16px;min-height:148px;box-shadow:0 4px 16px #15263f04;}
 .kpi-icon {display:block;font-size:19px;margin-bottom:10px;}
 .kpi-label {font-size:10px;letter-spacing:.07em;font-weight:650;color:var(--muted);margin:0 0 6px;}
@@ -71,7 +71,7 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 [data-testid="stExpander"] {background:white;border-color:var(--border);border-radius:12px;}
 [data-testid="stAlert"] {border-radius:12px;}
 [data-testid="stMetric"] {background:white;border:1px solid var(--border);border-radius:14px;padding:16px;}
-@media(max-width:700px) {.block-container {padding:1rem !important;} .hero {padding:26px 22px;} .hero h1 {font-size:26px;} .brand-name {font-size:12px;} .module-card {min-height:120px;} .kpi-card {min-height:125px;} }
+@media(max-width:700px) {.block-container {padding:1rem !important;} .hero {padding:26px 22px;} .hero h1 {font-size:26px;} .brand-name {font-size:12px;} .module-card {min-height:0;} .kpi-card {min-height:125px;} }
 @media(prefers-reduced-motion:reduce) {* {transition:none!important;}}
 </style>
 """, unsafe_allow_html=True)
@@ -426,7 +426,7 @@ try:
             "export": ("#e6f4fc", "Prepare shipments and manage exported stones."),
             "admin": ("#fff5de", "Manage users, access and shape mappings."),
         }
-        _cards_per_row = 3
+        _cards_per_row = 4
         for _row_start in range(0, len(_filtered), _cards_per_row):
             _row_items = _filtered[_row_start:_row_start + _cards_per_row]
             _cols = st.columns(_cards_per_row)
