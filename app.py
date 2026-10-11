@@ -466,6 +466,8 @@ try:
 .home-summary-label {font-size:12px;color:#52647b;margin-bottom:6px;}
 .home-summary-value {font-size:clamp(16px,1.45vw,22px);font-weight:700;color:#102842;letter-spacing:-.03em;overflow-wrap:anywhere;}
 .home-summary-note {font-size:11px;color:#8793a4;margin-top:4px;}
+[class*="st-key-workspace_card_"] {background-color:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;box-shadow:none!important;}
+[class*="st-key-workspace_card_"]:hover {background-color:#ffffff!important;background-image:none!important;}
 .home-section {font-size:23px;font-weight:700;color:#102842;margin:18px 0 10px;}
 .module-card {min-height:56px;padding:2px 2px 0 54px;position:relative;}
 .module-icon {position:absolute;left:4px;top:2px;width:36px;height:36px;font-size:18px;border-radius:50%;box-shadow:none;border:0;}
@@ -541,7 +543,7 @@ try:
                 copper = key in ("upload", "lot", "export")
                 bg, color = ("#fbf0e7", "#ad642d") if copper else ("#e7f4f5", "#087f8c")
                 with column:
-                    with st.container(border=True):
+                    with st.container(border=True, key=f"workspace_card_{key}"):
                         st.markdown(
                             f'<div class="module-card" style="--icon-bg:{bg};--icon-color:{color};">'
                             f'<div class="module-icon"><span class="glyph">{icon}</span></div>'
