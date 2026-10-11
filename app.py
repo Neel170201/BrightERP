@@ -1995,94 +1995,97 @@ try:
                     date_from_col, date_to_col = st.columns(2)
                     download_from = date_from_col.date_input("From", value=None, key="export_download_from", format="DD-MM-YYYY")
                     download_to = date_to_col.date_input("To", value=None, key="export_download_to", format="DD-MM-YYYY")
-                    exp_data_df = read_frame(
-                        """
-                        SELECT b.buyer_name, b.buying_date, b.party_name, b.report_no, b.lab,
-                               b.diamond_type, b.shape, b.cts, b.color, b.clarity,
-                               b.per_carat, b.amount, b.bank_rate, b.location, b.remark,
-                               b.stock_status, b.lot_no, b.inr_pc, b.inr_total,
-                               b.exported_at, b.export_date, b.export_location, b.export_part
-                        FROM buying_stock b
-                        WHERE b.exported_at IS NOT NULL AND b.exported_at != ''
-                        ORDER BY b.exported_at DESC
-                        """,
-                        conn,
-                    )
-
-                    locations = sorted(exp_data_df["export_location"].dropna().astype(str).unique().tolist())
-                    download_location = st.selectbox("Location", locations, index=None, placeholder="All locations", key="export_download_location")
+                    download_location = st.text_input("Location", placeholder="Leave empty for all locations", key="export_download_location_text").strip()
                     with st.expander("More filters"):
                         ef_report = st.text_input("Report No", key="exp_report_filter")
                         ef_party = st.text_input("Party", key="exp_party_filter")
                         ef_status = st.selectbox("Status", ["All", "LIVE", "LOT"], key="exp_status_filter")
-                    disp_exp = exp_data_df.copy()
-                    if ef_report:
-                        disp_exp = disp_exp[disp_exp["report_no"].astype(str).str.contains(ef_report, case=False, na=False, regex=False)]
-                    if ef_party:
-                        disp_exp = disp_exp[disp_exp["party_name"].astype(str).str.contains(ef_party, case=False, na=False, regex=False)]
-                    if ef_status != "All":
-                        disp_exp = disp_exp[disp_exp["stock_status"] == ef_status]
-                    if download_location is not None:
-                        disp_exp = disp_exp[disp_exp["export_location"].astype(str) == download_location]
-                    export_days = pd.to_datetime(disp_exp["export_date"], format="%d-%m-%Y", errors="coerce")
-                    if download_from:
-                        disp_exp = disp_exp[export_days >= pd.Timestamp(download_from)]
-                    if download_to:
-                        disp_exp = disp_exp[export_days.reindex(disp_exp.index) <= pd.Timestamp(download_to)]
-                    invalid_range = download_from and download_to and download_from > download_to
+                    invalid_range = bool(download_from and download_to and download_from > download_to)
                     st.markdown('<div class="export-file-note">Excel file · All matching export records</div>', unsafe_allow_html=True)
                     if invalid_range:
                         st.warning("From date must be on or before To date.")
-                    elif disp_exp.empty:
-                        st.info("No exported stones match these filters.")
-                    else:
-                        # INR columns
-                        pc_e  = pd.to_numeric(disp_exp["per_carat"], errors="coerce").fillna(0)
-                        amt_e = pd.to_numeric(disp_exp["amount"],    errors="coerce").fillna(0)
-                        br_e  = pd.to_numeric(disp_exp["bank_rate"], errors="coerce").fillna(0)
-                        db_inr_pc_e    = pd.to_numeric(disp_exp.get("inr_pc",    pd.Series(dtype=float)), errors="coerce")
-                        db_inr_total_e = pd.to_numeric(disp_exp.get("inr_total", pd.Series(dtype=float)), errors="coerce")
-                        disp_exp["INR P/C"]   = db_inr_pc_e.where(db_inr_pc_e.notna() & (db_inr_pc_e != 0), round(pc_e * br_e, 2))
-                        disp_exp["INR TOTAL"] = db_inr_total_e.where(db_inr_total_e.notna() & (db_inr_total_e != 0), round(amt_e * br_e, 2))
+                    def build_export_excel(download_from=download_from, download_to=download_to,
+                                           download_location=download_location, ef_report=ef_report,
+                                           ef_party=ef_party, ef_status=ef_status, database_url=url):
+                        download_conn = connect(database_url)
+                        try:
+                            exp_data_df = read_frame(
+                                """
+                                SELECT b.buyer_name, b.buying_date, b.party_name, b.report_no, b.lab,
+                                       b.diamond_type, b.shape, b.cts, b.color, b.clarity,
+                                       b.per_carat, b.amount, b.bank_rate, b.location, b.remark,
+                                       b.stock_status, b.lot_no, b.inr_pc, b.inr_total,
+                                       b.exported_at, b.export_date, b.export_location, b.export_part
+                                FROM buying_stock b
+                                WHERE b.exported_at IS NOT NULL AND b.exported_at != ''
+                                ORDER BY b.exported_at DESC
+                                """,
+                                download_conn,
+                            )
 
-                        disp_exp = disp_exp.rename(columns={
-                            "buyer_name":        "BUYER",
-                            "buying_date":       "DATE",
-                            "party_name":        "PARTY",
-                            "report_no":         "REPORT NO",
-                            "lab":               "LAB",
-                            "diamond_type":      "TYPE",
-                            "shape":             "SHAPE",
-                            "cts":               "CTS",
-                            "color":             "COLOR",
-                            "clarity":           "CLARITY",
-                            "per_carat":         "$P/CT",
-                            "amount":            "AMT USD",
-                            "bank_rate":         "BANK RATE",
-                            "location":          "LOCATION",
-                            "remark":            "REMARK",
-                            "stock_status":      "STATUS",
-                            "lot_no":            "LOT NO",
-                            "exported_at":       "EXPORTED AT",
-                            "export_date":       "EXPORT DATE",
-                            "export_location":   "EXPORT LOCATION",
-                            "export_part":       "EXPORT PART",
-                        })
-                        disp_exp.drop(["inr_pc", "inr_total"], axis=1, inplace=True, errors="ignore")
+                            disp_exp = exp_data_df.copy()
+                            if ef_report:
+                                disp_exp = disp_exp[disp_exp["report_no"].astype(str).str.contains(ef_report, case=False, na=False, regex=False)]
+                            if ef_party:
+                                disp_exp = disp_exp[disp_exp["party_name"].astype(str).str.contains(ef_party, case=False, na=False, regex=False)]
+                            if ef_status != "All":
+                                disp_exp = disp_exp[disp_exp["stock_status"] == ef_status]
+                            if download_location:
+                                disp_exp = disp_exp[disp_exp["export_location"].astype(str) == download_location]
+                            export_days = pd.to_datetime(disp_exp["export_date"], format="%d-%m-%Y", errors="coerce")
+                            if download_from:
+                                disp_exp = disp_exp[export_days >= pd.Timestamp(download_from)]
+                            if download_to:
+                                disp_exp = disp_exp[export_days.reindex(disp_exp.index) <= pd.Timestamp(download_to)]
+                            # INR columns
+                            pc_e  = pd.to_numeric(disp_exp["per_carat"], errors="coerce").fillna(0)
+                            amt_e = pd.to_numeric(disp_exp["amount"],    errors="coerce").fillna(0)
+                            br_e  = pd.to_numeric(disp_exp["bank_rate"], errors="coerce").fillna(0)
+                            db_inr_pc_e    = pd.to_numeric(disp_exp.get("inr_pc",    pd.Series(dtype=float)), errors="coerce")
+                            db_inr_total_e = pd.to_numeric(disp_exp.get("inr_total", pd.Series(dtype=float)), errors="coerce")
+                            disp_exp["INR P/C"]   = db_inr_pc_e.where(db_inr_pc_e.notna() & (db_inr_pc_e != 0), round(pc_e * br_e, 2))
+                            disp_exp["INR TOTAL"] = db_inr_total_e.where(db_inr_total_e.notna() & (db_inr_total_e != 0), round(amt_e * br_e, 2))
 
-                        # Excel download
-                        import io as _exp_io
-                        exp_buf = _exp_io.BytesIO()
-                        disp_exp.to_excel(exp_buf, index=False, engine="openpyxl")
-                        exp_buf.seek(0)
-                        st.download_button(
-                            label="Download Excel", type="primary", use_container_width=True,
-                            data=exp_buf,
-                            file_name=f"Export_Data_{datetime.now().strftime('%d%m%Y_%H%M%S')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key="export_data_dl_btn",
-                        )
+                            disp_exp = disp_exp.rename(columns={
+                                "buyer_name":        "BUYER",
+                                "buying_date":       "DATE",
+                                "party_name":        "PARTY",
+                                "report_no":         "REPORT NO",
+                                "lab":               "LAB",
+                                "diamond_type":      "TYPE",
+                                "shape":             "SHAPE",
+                                "cts":               "CTS",
+                                "color":             "COLOR",
+                                "clarity":           "CLARITY",
+                                "per_carat":         "$P/CT",
+                                "amount":            "AMT USD",
+                                "bank_rate":         "BANK RATE",
+                                "location":          "LOCATION",
+                                "remark":            "REMARK",
+                                "stock_status":      "STATUS",
+                                "lot_no":            "LOT NO",
+                                "exported_at":       "EXPORTED AT",
+                                "export_date":       "EXPORT DATE",
+                                "export_location":   "EXPORT LOCATION",
+                                "export_part":       "EXPORT PART",
+                            })
+                            disp_exp.drop(["inr_pc", "inr_total"], axis=1, inplace=True, errors="ignore")
 
+                            # Excel download
+                            import io as _exp_io
+                            exp_buf = _exp_io.BytesIO()
+                            disp_exp.to_excel(exp_buf, index=False, engine="openpyxl")
+                            exp_buf.seek(0)
+                            return exp_buf.getvalue()
+                        finally:
+                            download_conn.close()
+                    st.download_button(
+                        "Download Excel", data=build_export_excel,
+                        file_name=f"Export_Data_{datetime.now().strftime('%d%m%Y_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="export_data_dl_btn", type="primary", use_container_width=True,
+                        on_click="ignore", disabled=invalid_range,
+                    )
                     st.caption("Leave filters empty to download all export records. Dates use the export date.")
             if is_admin:
                 with st.expander("Undo export"):
