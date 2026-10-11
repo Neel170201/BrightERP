@@ -1580,216 +1580,234 @@ try:
     # ══════════════════════════════════════════════════════════════════════════
     if not is_video:
         if tab4:
-            st.markdown(_section_header("🔴", "Return Stones"), unsafe_allow_html=True)
+            with st.container(key="returns_page"):
+                st.markdown('<style>[data-testid="stAppViewContainer"]:has(.st-key-returns_page)::before{display:none!important;} .st-key-return_input_panel,.st-key-return_records_panel,.st-key-return_cancel_panel{background:#fff!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:20px!important;} .st-key-returns_page [data-baseweb="input"],.st-key-returns_page [data-baseweb="base-input"],.st-key-returns_page input,.st-key-returns_page textarea{background:#fff!important;} .st-key-return_section_tabs{border-bottom:1px solid #dce5ed;margin-bottom:10px;} .st-key-return_section_tabs .stButton button{background:transparent!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;box-shadow:none!important;color:#64748b!important;transform:none!important;} .st-key-return_section_tabs .stButton button[kind="primary"]{border-bottom-color:#087f8c!important;color:#087f8c!important;} .st-key-return_section_tabs .stButton button p{color:inherit!important;font-size:14px!important;font-weight:600!important;} .st-key-returns_page [data-testid="stMetric"]{padding:14px 18px!important;box-shadow:none!important;} .st-key-returns_page [data-testid="stMetricValue"]{font-size:25px!important;} </style>', unsafe_allow_html=True)
+                st.subheader("Return Stones")
+                st.caption("Return stones and manage lot cancellations.")
 
-            def normalize_cert(cert: str) -> str:
-                """If user pastes a 9-digit number without LG prefix, auto-add LG."""
-                c = cert.strip()
-                if c.isdigit() and len(c) == 9:
-                    return "LG" + c
-                return c
+                def normalize_cert(cert: str) -> str:
+                    """If user pastes a 9-digit number without LG prefix, auto-add LG."""
+                    c = cert.strip()
+                    if c.isdigit() and len(c) == 9:
+                        return "LG" + c
+                    return c
 
-            return_section = st.radio("Section", ["🔴 Return", "🔄 Cancel Lot → Back to Buying Stock"], horizontal=True, key="return_section")
+                return_options = [("🔴 Return", "Return Stones"), ("🔄 Cancel Lot → Back to Buying Stock", "Cancel Lot → Buying Stock")]
+                if st.session_state.get("return_section") not in [value for value, _ in return_options]:
+                    st.session_state["return_section"] = return_options[0][0]
+                with st.container(key="return_section_tabs"):
+                    nav_columns = st.columns([1.4, 2.4, 6.2])
+                    for column, (value, label) in zip(nav_columns, return_options):
+                        if column.button(label, key=f"return_nav_{label}", type="primary" if st.session_state["return_section"] == value else "secondary", use_container_width=True):
+                            st.session_state["return_section"] = value
+                            st.rerun()
+                return_section = st.session_state["return_section"]
 
-            # ── SUB-TAB 1: Normal Return ─────────────────────────────────────────
-            if return_section == '🔴 Return':
-                st.info("Paste REPORT numbers line by line")
+                # ── SUB-TAB 1: Normal Return ─────────────────────────────────────────
+                if return_section == '🔴 Return':
+                    with st.container(key="return_input_panel"):
+                        st.subheader("Return certificates")
+                        st.caption("Paste one report number per line, then confirm the return.")
 
-                return_text = st.text_area("Paste REPORT Numbers", key="return_textbox")
+                        return_text = st.text_area("Paste REPORT Numbers", key="return_textbox")
 
-                if st.button("🔴 Confirm Return", key="confirm_return_btn"):
-                    if return_text.strip():
-                        report_list_r = [x.strip() for x in return_text.splitlines() if x.strip()]
-                        returned = not_found = 0
-                        return_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        if st.button("🔴 Confirm Return", key="confirm_return_btn", type="primary"):
+                            if return_text.strip():
+                                report_list_r = [x.strip() for x in return_text.splitlines() if x.strip()]
+                                returned = not_found = 0
+                                return_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                        for report_no in report_list_r:
-                            cursor.execute(
-                                "SELECT report_no FROM buying_stock WHERE report_no=? AND stock_status != 'RETURN'",
-                                (report_no,),
-                            )
-                            if cursor.fetchone():
-                                cursor.execute(
-                                    "UPDATE buying_stock SET stock_status='RETURN', return_date=? WHERE report_no=?",
-                                    (return_date, report_no),
-                                )
-                                returned += 1
-                            else:
-                                not_found += 1
+                                for report_no in report_list_r:
+                                    cursor.execute(
+                                        "SELECT report_no FROM buying_stock WHERE report_no=? AND stock_status != 'RETURN'",
+                                        (report_no,),
+                                    )
+                                    if cursor.fetchone():
+                                        cursor.execute(
+                                            "UPDATE buying_stock SET stock_status='RETURN', return_date=? WHERE report_no=?",
+                                            (return_date, report_no),
+                                        )
+                                        returned += 1
+                                    else:
+                                        not_found += 1
 
-                        conn.commit()
-                        st.success(f"✅ {returned} stones returned")
-                        if not_found:
-                            st.warning(f"⚠️ {not_found} stones not found or already returned")
-                        st.rerun()
+                                conn.commit()
+                                st.success(f"✅ {returned} stones returned")
+                                if not_found:
+                                    st.warning(f"⚠️ {not_found} stones not found or already returned")
+                                st.rerun()
 
-                st.divider()
 
-                return_df = read_frame(
-                    "SELECT * FROM buying_stock WHERE stock_status = 'RETURN' ORDER BY id DESC",
-                    conn,
-                )
-
-                c1, c2 = st.columns(2)
-                c1.metric("🔴 Total Returns", len(return_df))
-                c2.metric(
-                    "💰 Return Amount (USD)",
-                    round(return_df["amount"].sum(), 2) if not return_df.empty else 0,
-                )
-
-                # ── Excel download for Return Stones table ───────────────────────
-                if not return_df.empty:
-                    import io as _ret_io
-                    _ret_excel_buf = _ret_io.BytesIO()
-                    return_df.to_excel(_ret_excel_buf, index=False, engine="openpyxl")
-                    _ret_excel_buf.seek(0)
-
-                    ret_dl1, ret_dl2 = st.columns([5, 1])
-                    ret_dl2.download_button(
-                        label="⬇ Excel",
-                        data=_ret_excel_buf,
-                        file_name=f"Return_Stones_{datetime.now().strftime('%d%m%Y')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="return_stones_excel_dl",
-                        use_container_width=True,
+                    return_df = read_frame(
+                        "SELECT * FROM buying_stock WHERE stock_status = 'RETURN' ORDER BY NULLIF(return_date,'') DESC NULLS LAST, id DESC",
+                        conn,
                     )
 
-                st.dataframe(return_df, use_container_width=True, height=620)
-
-            # ── SUB-TAB 2: LOT CANCEL → BUYING STOCK (LIVE) ──────────────────────
-            if return_section == '🔄 Cancel Lot → Back to Buying Stock':
-                st.markdown(
-                    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #22c55e;'
-                    'border-radius:8px;padding:14px 18px;margin-bottom:20px;">'
-                    '<p style="color:#166534;font-size:13px;font-weight:700;margin:0 0 4px;">🔄 Cancel Lot and Return to Buying Stock</p>'
-                    '<p style="color:#166534;font-size:12px;margin:0;line-height:1.7;">'
-                    'If a lot was generated by mistake for a certificate, or needs to be cancelled for any reason, '
-                    'paste it below. The lot number will be cleared and the stone will go back to <b>LIVE Buying Stock</b>.</p>'
-                    '</div>',
-                    unsafe_allow_html=True,
-                )
-
-                revert_text = st.text_area(
-                    "Certificate Numbers (one per line)",
-                    key="revert_lot_textbox",
-                    placeholder="LG123456\nLG789012\n...",
-                    height=160,
-                )
-
-                # Live preview of what will be reverted
-                if revert_text.strip():
-                    revert_list_preview = [normalize_cert(x.strip()) for x in revert_text.splitlines() if x.strip()]
-                    if revert_list_preview:
-                        preview_revert_df = read_frame(
-                            f"""
-                            SELECT report_no, lot_no, memo_no, party_name, shape, cts, per_carat, amount, stock_status
-                            FROM buying_stock
-                            WHERE report_no IN ({','.join(['?']*len(revert_list_preview))})
-                            """,
-                            conn,
-                            params=revert_list_preview,
+                    with st.container(key="return_records_panel"):
+                        st.subheader("Returned stones")
+                        st.caption("Latest returned stones appear first.")
+                        c1, c2 = st.columns(2)
+                        c1.metric("🔴 Total Returns", len(return_df))
+                        c2.metric(
+                            "💰 Return Amount (USD)",
+                            round(return_df["amount"].sum(), 2) if not return_df.empty else 0,
                         )
 
-                        lot_found    = preview_revert_df[preview_revert_df["lot_no"].notna() & (preview_revert_df["lot_no"] != "")]
-                        no_lot_found = [r for r in revert_list_preview if r not in preview_revert_df["report_no"].tolist()]
-                        already_live = preview_revert_df[
-                            (preview_revert_df["stock_status"] == "LIVE") &
-                            (preview_revert_df["lot_no"].isna() | (preview_revert_df["lot_no"] == ""))
-                        ]
+                        # ── Excel download for Return Stones table ───────────────────────
+                        if not return_df.empty:
+                            import io as _ret_io
+                            _ret_excel_buf = _ret_io.BytesIO()
+                            return_df.to_excel(_ret_excel_buf, index=False, engine="openpyxl")
+                            _ret_excel_buf.seek(0)
 
-                        if not lot_found.empty:
-                            st.markdown(
-                                f'<p style="font-size:12px;color:#166534;margin-bottom:6px;">'
-                                f'✅ {len(lot_found)} certificate(s) will have their lot cancelled and return to LIVE:</p>',
-                                unsafe_allow_html=True,
-                            )
-                            st.dataframe(
-                                lot_found.rename(columns={
-                                    "report_no": "CERTIFICATE", "lot_no": "LOT NO (CLEAR HOGA)",
-                                    "memo_no": "MEMO NO", "party_name": "PARTY",
-                                    "shape": "SHAPE", "cts": "CTS",
-                                    "per_carat": "P/CT", "amount": "AMT USD", "stock_status": "STATUS"
-                                }),
+                            ret_dl1, ret_dl2 = st.columns([5, 1])
+                            ret_dl2.download_button(
+                                label="⬇ Excel",
+                                data=_ret_excel_buf,
+                                file_name=f"Return_Stones_{datetime.now().strftime('%d%m%Y')}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key="return_stones_excel_dl",
                                 use_container_width=True,
                             )
 
-                        if not already_live.empty:
-                            st.markdown(
-                                f'<div style="background:#fafafa;border:1px solid #d4d4d4;border-left:3px solid #f59e0b;'
-                                f'border-radius:6px;padding:10px 14px;margin:6px 0;">'
-                                f'<p style="color:#92400e;font-size:12px;margin:0;">'
-                                f'⚠️ {len(already_live)} certificate(s) are already LIVE (no lot assigned): '
-                                f'{", ".join(already_live["report_no"].tolist())}</p></div>',
-                                unsafe_allow_html=True,
-                            )
+                        st.dataframe(return_df, use_container_width=True, height=620)
 
-                        if no_lot_found:
-                            st.markdown(
-                                f'<div style="background:#fafafa;border:1px solid #d4d4d4;border-left:3px solid #ef4444;'
-                                f'border-radius:6px;padding:10px 14px;margin:6px 0;">'
-                                f'<p style="color:#991b1b;font-size:12px;margin:0;">'
-                                f'❌ {len(no_lot_found)} certificate(s) not found in DB: '
-                                f'{", ".join(no_lot_found)}</p></div>',
-                                unsafe_allow_html=True,
-                            )
+                # ── SUB-TAB 2: LOT CANCEL → BUYING STOCK (LIVE) ──────────────────────
+                if return_section == '🔄 Cancel Lot → Back to Buying Stock':
+                    with st.container(key="return_cancel_panel"):
+                        st.markdown(
+                            '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #22c55e;'
+                            'border-radius:8px;padding:14px 18px;margin-bottom:20px;">'
+                            '<p style="color:#166534;font-size:13px;font-weight:700;margin:0 0 4px;">🔄 Cancel Lot and Return to Buying Stock</p>'
+                            '<p style="color:#166534;font-size:12px;margin:0;line-height:1.7;">'
+                            'If a lot was generated by mistake for a certificate, or needs to be cancelled for any reason, '
+                            'paste it below. The lot number will be cleared and the stone will go back to <b>LIVE Buying Stock</b>.</p>'
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
 
-                st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+                        revert_text = st.text_area(
+                            "Certificate Numbers (one per line)",
+                            key="revert_lot_textbox",
+                            placeholder="LG123456\nLG789012\n...",
+                            height=160,
+                        )
 
-                if st.button("🔄 Confirm — Lot Cancel ", key="confirm_revert_lot_btn"):
-                    if not revert_text.strip():
-                        st.warning("⚠️ No certificate number pasted.")
-                    else:
-                        revert_list = [normalize_cert(x.strip()) for x in revert_text.splitlines() if x.strip()]
-                        reverted = skipped_revert = not_found_revert = 0
-                        revert_details = []
-
-                        for report_no in revert_list:
-                            cursor.execute(
-                                "SELECT report_no, lot_no, stock_status FROM buying_stock WHERE report_no=?",
-                                (report_no,),
-                            )
-                            row = cursor.fetchone()
-
-                            if not row:
-                                not_found_revert += 1
-                                revert_details.append({"CERTIFICATE": report_no, "RESULT": "❌ Not found in DB", "LOT NO": ""})
-                            elif not row[1]:
-                                # No lot assigned
-                                skipped_revert += 1
-                                revert_details.append({"CERTIFICATE": report_no, "RESULT": f"⚠️ No lot was assigned (Status: {row[2]})", "LOT NO": ""})
-                            else:
-                                old_lot = row[1]
-                                # Clear lot_no, lot_date, memo_no → set status back to LIVE
-                                cursor.execute(
-                                    """
-                                    UPDATE buying_stock
-                                    SET stock_status = 'LIVE',
-                                        lot_no       = NULL,
-                                        lot_date     = NULL,
-                                        memo_no      = NULL,
-                                        return_date  = NULL
-                                    WHERE report_no = ?
+                        # Live preview of what will be reverted
+                        if revert_text.strip():
+                            revert_list_preview = [normalize_cert(x.strip()) for x in revert_text.splitlines() if x.strip()]
+                            if revert_list_preview:
+                                preview_revert_df = read_frame(
+                                    f"""
+                                    SELECT report_no, lot_no, memo_no, party_name, shape, cts, per_carat, amount, stock_status
+                                    FROM buying_stock
+                                    WHERE report_no IN ({','.join(['?']*len(revert_list_preview))})
                                     """,
-                                    (report_no,),
+                                    conn,
+                                    params=revert_list_preview,
                                 )
-                                reverted += 1
-                                revert_details.append({"CERTIFICATE": report_no, "RESULT": "✅ Lot cancelled — back to LIVE", "LOT NO": old_lot})
 
-                        conn.commit()
+                                lot_found    = preview_revert_df[preview_revert_df["lot_no"].notna() & (preview_revert_df["lot_no"] != "")]
+                                no_lot_found = [r for r in revert_list_preview if r not in preview_revert_df["report_no"].tolist()]
+                                already_live = preview_revert_df[
+                                    (preview_revert_df["stock_status"] == "LIVE") &
+                                    (preview_revert_df["lot_no"].isna() | (preview_revert_df["lot_no"] == ""))
+                                ]
 
-                        if reverted:
-                            st.success(f"✅ {reverted} stone(s) had their lot cancelled — now back in Buying Stock (LIVE)")
-                        if skipped_revert:
-                            st.warning(f"⚠️ {skipped_revert} stone(s) skipped — no lot was assigned")
-                        if not_found_revert:
-                            st.error(f"❌ {not_found_revert} certificate(s) not found in DB")
+                                if not lot_found.empty:
+                                    st.markdown(
+                                        f'<p style="font-size:12px;color:#166534;margin-bottom:6px;">'
+                                        f'✅ {len(lot_found)} certificate(s) will have their lot cancelled and return to LIVE:</p>',
+                                        unsafe_allow_html=True,
+                                    )
+                                    st.dataframe(
+                                        lot_found.rename(columns={
+                                            "report_no": "CERTIFICATE", "lot_no": "LOT NO (CLEAR HOGA)",
+                                            "memo_no": "MEMO NO", "party_name": "PARTY",
+                                            "shape": "SHAPE", "cts": "CTS",
+                                            "per_carat": "P/CT", "amount": "AMT USD", "stock_status": "STATUS"
+                                        }),
+                                        use_container_width=True,
+                                    )
 
-                        if revert_details:
-                            st.dataframe(pd.DataFrame(revert_details), use_container_width=True)
+                                if not already_live.empty:
+                                    st.markdown(
+                                        f'<div style="background:#fafafa;border:1px solid #d4d4d4;border-left:3px solid #f59e0b;'
+                                        f'border-radius:6px;padding:10px 14px;margin:6px 0;">'
+                                        f'<p style="color:#92400e;font-size:12px;margin:0;">'
+                                        f'⚠️ {len(already_live)} certificate(s) are already LIVE (no lot assigned): '
+                                        f'{", ".join(already_live["report_no"].tolist())}</p></div>',
+                                        unsafe_allow_html=True,
+                                    )
 
-                        st.rerun()
+                                if no_lot_found:
+                                    st.markdown(
+                                        f'<div style="background:#fafafa;border:1px solid #d4d4d4;border-left:3px solid #ef4444;'
+                                        f'border-radius:6px;padding:10px 14px;margin:6px 0;">'
+                                        f'<p style="color:#991b1b;font-size:12px;margin:0;">'
+                                        f'❌ {len(no_lot_found)} certificate(s) not found in DB: '
+                                        f'{", ".join(no_lot_found)}</p></div>',
+                                        unsafe_allow_html=True,
+                                    )
 
-        # ══════════════════════════════════════════════════════════════════════════
+                        st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+
+                        if st.button("🔄 Confirm — Lot Cancel ", key="confirm_revert_lot_btn", type="primary"):
+                            if not revert_text.strip():
+                                st.warning("⚠️ No certificate number pasted.")
+                            else:
+                                revert_list = [normalize_cert(x.strip()) for x in revert_text.splitlines() if x.strip()]
+                                reverted = skipped_revert = not_found_revert = 0
+                                revert_details = []
+
+                                for report_no in revert_list:
+                                    cursor.execute(
+                                        "SELECT report_no, lot_no, stock_status FROM buying_stock WHERE report_no=?",
+                                        (report_no,),
+                                    )
+                                    row = cursor.fetchone()
+
+                                    if not row:
+                                        not_found_revert += 1
+                                        revert_details.append({"CERTIFICATE": report_no, "RESULT": "❌ Not found in DB", "LOT NO": ""})
+                                    elif not row[1]:
+                                        # No lot assigned
+                                        skipped_revert += 1
+                                        revert_details.append({"CERTIFICATE": report_no, "RESULT": f"⚠️ No lot was assigned (Status: {row[2]})", "LOT NO": ""})
+                                    else:
+                                        old_lot = row[1]
+                                        # Clear lot_no, lot_date, memo_no → set status back to LIVE
+                                        cursor.execute(
+                                            """
+                                            UPDATE buying_stock
+                                            SET stock_status = 'LIVE',
+                                                lot_no       = NULL,
+                                                lot_date     = NULL,
+                                                memo_no      = NULL,
+                                                return_date  = NULL
+                                            WHERE report_no = ?
+                                            """,
+                                            (report_no,),
+                                        )
+                                        reverted += 1
+                                        revert_details.append({"CERTIFICATE": report_no, "RESULT": "✅ Lot cancelled — back to LIVE", "LOT NO": old_lot})
+
+                                conn.commit()
+
+                                if reverted:
+                                    st.success(f"✅ {reverted} stone(s) had their lot cancelled — now back in Buying Stock (LIVE)")
+                                if skipped_revert:
+                                    st.warning(f"⚠️ {skipped_revert} stone(s) skipped — no lot was assigned")
+                                if not_found_revert:
+                                    st.error(f"❌ {not_found_revert} certificate(s) not found in DB")
+
+                                if revert_details:
+                                    st.dataframe(pd.DataFrame(revert_details), use_container_width=True)
+
+                                st.rerun()
+
+
+    # ══════════════════════════════════════════════════════════════════════════
         # TAB 5 — ADMIN
         # ══════════════════════════════════════════════════════════════════════════
     # ══════════════════════════════════════════════════════════════════════════
