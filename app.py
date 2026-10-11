@@ -1815,368 +1815,311 @@ try:
     # ══════════════════════════════════════════════════════════════════════════
     if not is_video:
         if tab_export:
-            st.markdown(_section_header("✈️", "Export Stones"), unsafe_allow_html=True)
-
-            if "export_subpage" not in st.session_state:
-                st.session_state["export_subpage"] = "mark"
-
-            _esp1, _esp2 = st.columns(2)
-            with _esp1:
-                if st.button(
-                    "✈️ Mark as Exported", key="export_subnav_mark", use_container_width=True,
-                    type="primary" if st.session_state["export_subpage"] == "mark" else "secondary",
-                ):
-                    st.session_state["export_subpage"] = "mark"
-                    st.rerun()
-            with _esp2:
-                if st.button(
-                    "📊 Export Data", key="export_subnav_data", use_container_width=True,
-                    type="primary" if st.session_state["export_subpage"] == "data" else "secondary",
-                ):
-                    st.session_state["export_subpage"] = "data"
-                    st.rerun()
-
-            st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
-
+            st.markdown('<style>[data-testid="stAppViewContainer"]:has(.st-key-export_mark_panel)::before{display:none!important;}.st-key-export_mark_panel,.st-key-export_download_panel{background:#fff!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:22px!important;}.st-key-export_mark_panel [data-baseweb="input"],.st-key-export_download_panel [data-baseweb="input"],.st-key-export_mark_panel input,.st-key-export_download_panel input,.st-key-export_download_panel [data-baseweb="select"]>div{background:#fff!important;}.export-file-note{padding:16px;background:#eaf6f7;border-radius:8px;color:#087083;font-size:13px;margin:10px 0;}</style>', unsafe_allow_html=True)
+            st.subheader("Export Stones")
+            st.caption("Mark stones as exported and download your export records.")
             def normalize_cert_exp(cert: str) -> str:
                 c = cert.strip()
                 if c.isdigit() and len(c) == 9:
                     return "LG" + c
                 return c
 
-            # ── SUB-PAGE 1: Mark as Exported ──────────────────────────────────────
-            if st.session_state["export_subpage"] == "mark":
-                st.markdown(
-                    _label("📋  Paste certificate numbers to mark as Exported (one per line)", margin_bottom=10),
-                    unsafe_allow_html=True,
-                )
-
-                export_text = st.text_area(
-                    "Certificate Numbers",
-                    key="export_cert_box",
-                    placeholder="LG123456\nLG789012\n...",
-                    height=200,
-                    label_visibility="collapsed",
-                )
-
-                export_list = [normalize_cert_exp(x) for x in export_text.splitlines() if x.strip()] if export_text else []
-
-                if export_list:
+            mark_panel, download_panel = st.columns([1.5, 1], gap="medium")
+            with mark_panel:
+                with st.container(key="export_mark_panel"):
+                    st.subheader("Mark as exported")
                     st.markdown(
-                        f'<p style="font-size:12px;color:#171717;margin:4px 0 10px;">'
-                        f'📋 {len(export_list)} certificate(s) entered</p>',
+                        _label("📋  Paste certificate numbers to mark as Exported (one per line)", margin_bottom=10),
                         unsafe_allow_html=True,
                     )
 
-                    # Preview matching stones
-                    placeholders = ",".join(["?"] * len(export_list))
-                    preview_exp_df = read_frame(
-                        f"""
-                        SELECT report_no, buyer_name, party_name, shape, cts, color, clarity,
-                               stock_status, lot_no, exported_at
-                        FROM buying_stock
-                        WHERE report_no IN ({placeholders})
+                    export_text = st.text_area(
+                        "Certificate Numbers",
+                        key="export_cert_box",
+                        placeholder="LG123456\nLG789012\n...",
+                        height=200,
+                        label_visibility="collapsed",
+                    )
+
+                    export_list = [normalize_cert_exp(x) for x in export_text.splitlines() if x.strip()] if export_text else []
+
+                    if export_list:
+                        st.markdown(
+                            f'<p style="font-size:12px;color:#171717;margin:4px 0 10px;">'
+                            f'📋 {len(export_list)} certificate(s) entered</p>',
+                            unsafe_allow_html=True,
+                        )
+
+                        # Preview matching stones
+                        placeholders = ",".join(["?"] * len(export_list))
+                        preview_exp_df = read_frame(
+                            f"""
+                            SELECT report_no, buyer_name, party_name, shape, cts, color, clarity,
+                                   stock_status, lot_no, exported_at
+                            FROM buying_stock
+                            WHERE report_no IN ({placeholders})
+                            """,
+                            conn,
+                            params=export_list,
+                        )
+
+                        not_found_exp  = [r for r in export_list if r not in preview_exp_df["report_no"].tolist()]
+                        already_exp    = preview_exp_df[
+                            preview_exp_df["exported_at"].notna() & (preview_exp_df["exported_at"] != "")
+                        ]
+                        to_export_df   = preview_exp_df[
+                            preview_exp_df["exported_at"].isna() | (preview_exp_df["exported_at"] == "")
+                        ]
+                        invalid_status = to_export_df[~to_export_df["stock_status"].isin(["LIVE", "LOT"])]
+                        valid_exp_df   = to_export_df[to_export_df["stock_status"].isin(["LIVE", "LOT"])]
+
+                        if not valid_exp_df.empty:
+                            st.markdown(
+                                f'<p style="font-size:12px;color:#166534;font-weight:600;margin-bottom:6px;">'
+                                f'✅ {len(valid_exp_df)} stone(s) ready to export:</p>',
+                                unsafe_allow_html=True,
+                            )
+                        if not already_exp.empty:
+                            st.markdown(
+                                f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
+                                f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
+                                f'<p style="color:#92400e;font-size:13px;font-weight:700;margin:0 0 4px;">'
+                                f'⚠️ Already Exported — {len(already_exp)} Certificate(s)</p>'
+                                f'<p style="color:#92400e;font-size:12px;margin:0 0 6px;">'
+                                f'These certificates were already exported:</p>'
+                                f'<ul style="color:#92400e;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
+                                + "".join(f"<li>{r}</li>" for r in already_exp["report_no"].tolist()) +
+                                f'</ul></div>',
+                                unsafe_allow_html=True,
+                            )
+
+                        if not invalid_status.empty:
+                            st.markdown(
+                                f'<div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;'
+                                f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
+                                f'<p style="color:#991b1b;font-size:13px;font-weight:700;margin:0 0 4px;">'
+                                f'❌ Invalid Status — {len(invalid_status)} Certificate(s)</p>'
+                                f'<p style="color:#b91c1c;font-size:12px;margin:0 0 6px;">'
+                                f'These stones are not in LIVE or LOT status (possibly RETURN):</p>'
+                                f'<ul style="color:#991b1b;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
+                                + "".join(f"<li>{r} ({s})</li>" for r, s in zip(invalid_status["report_no"], invalid_status["stock_status"])) +
+                                f'</ul></div>',
+                                unsafe_allow_html=True,
+                            )
+
+                        if not_found_exp:
+                            st.markdown(
+                                f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #ef4444;'
+                                f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
+                                f'<p style="color:#991b1b;font-size:13px;font-weight:700;margin:0 0 4px;">'
+                                f'❌ Not Found — {len(not_found_exp)} Certificate(s)</p>'
+                                f'<p style="color:#b91c1c;font-size:12px;margin:0 0 6px;">'
+                                f'These certificates were not found in the buying file:</p>'
+                                f'<ul style="color:#991b1b;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
+                                + "".join(f"<li>{r}</li>" for r in not_found_exp) +
+                                f'</ul></div>',
+                                unsafe_allow_html=True,
+                            )
+
+                    st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+
+                    # ── Export Details Form (shown when certificates are entered) ──
+                    if export_list:
+                        st.markdown("---")
+                        st.markdown(
+                            _label("📋  Export Details — Fill before confirming", margin_bottom=10),
+                            unsafe_allow_html=True,
+                        )
+                        ef1, ef2, ef3 = st.columns(3)
+                        export_date_input    = ef1.date_input("Export Date",     key="exp_date_input",     value=datetime.now().date())
+                        export_location_input = ef2.text_input("Export Location", key="exp_location_input")
+                        export_part_input    = ef3.selectbox("Export Part",      key="exp_part_input",     options=["Part-A", "Part-B"])
+
+                    if st.button("✈️ Confirm Export", key="confirm_export_btn", type="primary"):
+                        if not export_list:
+                            st.warning("⚠️ Paste at least one certificate number.")
+                        elif not export_date_input:
+                            st.warning("⚠️ Please select an Export Date.")
+                        elif not export_location_input or not export_location_input.strip():
+                            st.warning("⚠️ Please fill in the Export Location.")
+                        elif not export_part_input:
+                            st.warning("⚠️ Please select an Export Part.")
+                        else:
+                            export_ts        = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            exp_date_str     = export_date_input.strftime("%d-%m-%Y")
+                            exp_location_str = export_location_input
+                            exp_part_str     = export_part_input
+                            exported_count = skipped_exp = not_found_exp_btn = 0
+
+                            for report_no in export_list:
+                                cursor.execute(
+                                    "SELECT report_no, stock_status, exported_at FROM buying_stock WHERE report_no=?",
+                                    (report_no,),
+                                )
+                                row_data = cursor.fetchone()
+                                if not row_data:
+                                    not_found_exp_btn += 1
+                                    continue
+                                _, status, exp_at = row_data
+                                if exp_at:
+                                    skipped_exp += 1
+                                    continue
+                                if status not in ("LIVE", "LOT"):
+                                    skipped_exp += 1
+                                    continue
+                                cursor.execute(
+                                    """UPDATE buying_stock
+                                       SET exported_at=?, export_date=?, export_location=?, export_part=?
+                                       WHERE report_no=?""",
+                                    (export_ts, exp_date_str, exp_location_str, exp_part_str, report_no),
+                                )
+                                exported_count += 1
+
+                            conn.commit()
+
+                            if exported_count:
+                                st.success(
+                                    f"✈️ {exported_count} stone(s) exported  ·  "
+                                    f"Date: {exp_date_str}  ·  Location: {exp_location_str}  ·  Part: {exp_part_str}"
+                                )
+                            if skipped_exp:
+                                st.warning(f"⚠️ {skipped_exp} stone(s) skipped (already exported or invalid status)")
+                            if not_found_exp_btn:
+                                st.error(f"❌ {not_found_exp_btn} certificate(s) not found in DB")
+                            st.rerun()
+
+            with download_panel:
+                with st.container(key="export_download_panel"):
+                    st.subheader("Download export data")
+                    st.caption("Download exported stone records as an Excel file.")
+                    date_from_col, date_to_col = st.columns(2)
+                    download_from = date_from_col.date_input("From", value=None, key="export_download_from", format="DD-MM-YYYY")
+                    download_to = date_to_col.date_input("To", value=None, key="export_download_to", format="DD-MM-YYYY")
+                    exp_data_df = read_frame(
+                        """
+                        SELECT b.buyer_name, b.buying_date, b.party_name, b.report_no, b.lab,
+                               b.diamond_type, b.shape, b.cts, b.color, b.clarity,
+                               b.per_carat, b.amount, b.bank_rate, b.location, b.remark,
+                               b.stock_status, b.lot_no, b.inr_pc, b.inr_total,
+                               b.exported_at, b.export_date, b.export_location, b.export_part
+                        FROM buying_stock b
+                        WHERE b.exported_at IS NOT NULL AND b.exported_at != ''
+                        ORDER BY b.exported_at DESC
                         """,
                         conn,
-                        params=export_list,
                     )
 
-                    not_found_exp  = [r for r in export_list if r not in preview_exp_df["report_no"].tolist()]
-                    already_exp    = preview_exp_df[
-                        preview_exp_df["exported_at"].notna() & (preview_exp_df["exported_at"] != "")
-                    ]
-                    to_export_df   = preview_exp_df[
-                        preview_exp_df["exported_at"].isna() | (preview_exp_df["exported_at"] == "")
-                    ]
-                    invalid_status = to_export_df[~to_export_df["stock_status"].isin(["LIVE", "LOT"])]
-                    valid_exp_df   = to_export_df[to_export_df["stock_status"].isin(["LIVE", "LOT"])]
-
-                    if not valid_exp_df.empty:
-                        st.markdown(
-                            f'<p style="font-size:12px;color:#166534;font-weight:600;margin-bottom:6px;">'
-                            f'✅ {len(valid_exp_df)} stone(s) ready to export:</p>',
-                            unsafe_allow_html=True,
-                        )
-                        st.dataframe(
-                            valid_exp_df[["report_no","buyer_name","party_name","shape","cts","color","clarity","stock_status","lot_no"]]
-                            .rename(columns={"report_no":"CERTIFICATE","buyer_name":"BUYER","party_name":"PARTY",
-                                             "shape":"SHAPE","cts":"CTS","color":"COLOR","clarity":"CLARITY",
-                                             "stock_status":"STATUS","lot_no":"LOT NO"}),
-                            use_container_width=True,
-                        )
-
-                    if not already_exp.empty:
-                        st.markdown(
-                            f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
-                            f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
-                            f'<p style="color:#92400e;font-size:13px;font-weight:700;margin:0 0 4px;">'
-                            f'⚠️ Already Exported — {len(already_exp)} Certificate(s)</p>'
-                            f'<p style="color:#92400e;font-size:12px;margin:0 0 6px;">'
-                            f'These certificates were already exported:</p>'
-                            f'<ul style="color:#92400e;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
-                            + "".join(f"<li>{r}</li>" for r in already_exp["report_no"].tolist()) +
-                            f'</ul></div>',
-                            unsafe_allow_html=True,
-                        )
-
-                    if not invalid_status.empty:
-                        st.markdown(
-                            f'<div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;'
-                            f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
-                            f'<p style="color:#991b1b;font-size:13px;font-weight:700;margin:0 0 4px;">'
-                            f'❌ Invalid Status — {len(invalid_status)} Certificate(s)</p>'
-                            f'<p style="color:#b91c1c;font-size:12px;margin:0 0 6px;">'
-                            f'These stones are not in LIVE or LOT status (possibly RETURN):</p>'
-                            f'<ul style="color:#991b1b;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
-                            + "".join(f"<li>{r} ({s})</li>" for r, s in zip(invalid_status["report_no"], invalid_status["stock_status"])) +
-                            f'</ul></div>',
-                            unsafe_allow_html=True,
-                        )
-
-                    if not_found_exp:
-                        st.markdown(
-                            f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #ef4444;'
-                            f'border-radius:8px;padding:12px 16px;margin:8px 0;">'
-                            f'<p style="color:#991b1b;font-size:13px;font-weight:700;margin:0 0 4px;">'
-                            f'❌ Not Found — {len(not_found_exp)} Certificate(s)</p>'
-                            f'<p style="color:#b91c1c;font-size:12px;margin:0 0 6px;">'
-                            f'These certificates were not found in the buying file:</p>'
-                            f'<ul style="color:#991b1b;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
-                            + "".join(f"<li>{r}</li>" for r in not_found_exp) +
-                            f'</ul></div>',
-                            unsafe_allow_html=True,
-                        )
-
-                st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
-
-                # ── Export Details Form (shown when certificates are entered) ──
-                if export_list:
-                    st.markdown("---")
-                    st.markdown(
-                        _label("📋  Export Details — Fill before confirming", margin_bottom=10),
-                        unsafe_allow_html=True,
-                    )
-                    ef1, ef2, ef3 = st.columns(3)
-                    export_date_input    = ef1.date_input("Export Date",     key="exp_date_input",     value=datetime.now().date())
-                    export_location_input = ef2.text_input("Export Location", key="exp_location_input")
-                    export_part_input    = ef3.selectbox("Export Part",      key="exp_part_input",     options=["Part-A", "Part-B"])
-
-                if st.button("✈️ Confirm Export", key="confirm_export_btn"):
-                    if not export_list:
-                        st.warning("⚠️ Paste at least one certificate number.")
-                    elif not export_date_input:
-                        st.warning("⚠️ Please select an Export Date.")
-                    elif not export_location_input or not export_location_input.strip():
-                        st.warning("⚠️ Please fill in the Export Location.")
-                    elif not export_part_input:
-                        st.warning("⚠️ Please select an Export Part.")
-                    else:
-                        export_ts        = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        exp_date_str     = export_date_input.strftime("%d-%m-%Y")
-                        exp_location_str = export_location_input
-                        exp_part_str     = export_part_input
-                        exported_count = skipped_exp = not_found_exp_btn = 0
-
-                        for report_no in export_list:
-                            cursor.execute(
-                                "SELECT report_no, stock_status, exported_at FROM buying_stock WHERE report_no=?",
-                                (report_no,),
-                            )
-                            row_data = cursor.fetchone()
-                            if not row_data:
-                                not_found_exp_btn += 1
-                                continue
-                            _, status, exp_at = row_data
-                            if exp_at:
-                                skipped_exp += 1
-                                continue
-                            if status not in ("LIVE", "LOT"):
-                                skipped_exp += 1
-                                continue
-                            cursor.execute(
-                                """UPDATE buying_stock
-                                   SET exported_at=?, export_date=?, export_location=?, export_part=?
-                                   WHERE report_no=?""",
-                                (export_ts, exp_date_str, exp_location_str, exp_part_str, report_no),
-                            )
-                            exported_count += 1
-
-                        conn.commit()
-
-                        if exported_count:
-                            st.success(
-                                f"✈️ {exported_count} stone(s) exported  ·  "
-                                f"Date: {exp_date_str}  ·  Location: {exp_location_str}  ·  Part: {exp_part_str}"
-                            )
-                        if skipped_exp:
-                            st.warning(f"⚠️ {skipped_exp} stone(s) skipped (already exported or invalid status)")
-                        if not_found_exp_btn:
-                            st.error(f"❌ {not_found_exp_btn} certificate(s) not found in DB")
-                        st.rerun()
-
-            # ── SUB-PAGE 2: Export Data ────────────────────────────────────────────
-            elif st.session_state["export_subpage"] == "data":
-                st.markdown(_section_header("📊", "Export Data"), unsafe_allow_html=True)
-
-                exp_data_df = read_frame(
-                    """
-                    SELECT b.buyer_name, b.buying_date, b.party_name, b.report_no, b.lab,
-                           b.diamond_type, b.shape, b.cts, b.color, b.clarity,
-                           b.per_carat, b.amount, b.bank_rate, b.location, b.remark,
-                           b.stock_status, b.lot_no, b.inr_pc, b.inr_total,
-                           b.exported_at, b.export_date, b.export_location, b.export_part
-                    FROM buying_stock b
-                    WHERE b.exported_at IS NOT NULL AND b.exported_at != ''
-                    ORDER BY b.exported_at DESC
-                    """,
-                    conn,
-                )
-
-                if exp_data_df.empty:
-                    st.info("ℹ️ No stones have been exported yet.")
-                else:
-                    # KPI Cards
-                    e_stones = len(exp_data_df)
-                    e_cts    = round(pd.to_numeric(exp_data_df["cts"],    errors="coerce").sum(), 2)
-                    e_amt    = round(pd.to_numeric(exp_data_df["amount"], errors="coerce").sum(), 2)
-                    e_br     = pd.to_numeric(exp_data_df["bank_rate"],    errors="coerce").fillna(0)
-                    e_inr    = round((pd.to_numeric(exp_data_df["amount"], errors="coerce").fillna(0) * e_br).sum(), 2)
-
-                    ek1, ek2, ek3, ek4 = st.columns(4)
-                    ek1.markdown(
-                        f'<div class="kpi-card" style="--accent:#171717;">'
-                        f'<span class="kpi-icon">✈️</span>'
-                        f'<p class="kpi-label">EXPORTED STONES</p>'
-                        f'<p class="kpi-value">{e_stones:,}</p>'
-                        f'<p class="kpi-sub">total exported</p></div>',
-                        unsafe_allow_html=True,
-                    )
-                    ek2.markdown(
-                        f'<div class="kpi-card" style="--accent:#3b82f6;">'
-                        f'<span class="kpi-icon">⚖️</span>'
-                        f'<p class="kpi-label">TOTAL CARATS</p>'
-                        f'<p class="kpi-value">{e_cts:,}</p>'
-                        f'<p class="kpi-sub">exported weight</p></div>',
-                        unsafe_allow_html=True,
-                    )
-                    ek3.markdown(
-                        f'<div class="kpi-card" style="--accent:#22c55e;">'
-                        f'<span class="kpi-icon">💵</span>'
-                        f'<p class="kpi-label">TOTAL AMT USD</p>'
-                        f'<p class="kpi-value">${e_amt:,.0f}</p>'
-                        f'<p class="kpi-sub">exported value</p></div>',
-                        unsafe_allow_html=True,
-                    )
-                    ek4.markdown(
-                        f'<div class="kpi-card" style="--accent:#a855f7;">'
-                        f'<span class="kpi-icon">🇮🇳</span>'
-                        f'<p class="kpi-label">TOTAL AMT INR</p>'
-                        f'<p class="kpi-value">₹{e_inr:,.0f}</p>'
-                        f'<p class="kpi-sub">converted value</p></div>',
-                        unsafe_allow_html=True,
-                    )
-
-                    st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
-
-                    # Filters
-                    st.markdown(_label("🔎  Filters", margin_bottom=6), unsafe_allow_html=True)
-                    ef1, ef2, ef3 = st.columns(3)
-                    ef_report = ef1.text_input("REPORT NO",  key="exp_report_filter", placeholder="LG123…")
-                    ef_party  = ef2.text_input("PARTY",       key="exp_party_filter",  placeholder="Party name…")
-                    ef_status = ef3.selectbox("STATUS", options=["All", "LIVE", "LOT"], key="exp_status_filter")
-
+                    locations = sorted(exp_data_df["export_location"].dropna().astype(str).unique().tolist())
+                    download_location = st.selectbox("Location", locations, index=None, placeholder="All locations", key="export_download_location")
+                    with st.expander("More filters"):
+                        ef_report = st.text_input("Report No", key="exp_report_filter")
+                        ef_party = st.text_input("Party", key="exp_party_filter")
+                        ef_status = st.selectbox("Status", ["All", "LIVE", "LOT"], key="exp_status_filter")
                     disp_exp = exp_data_df.copy()
                     if ef_report:
-                        disp_exp = disp_exp[disp_exp["report_no"].astype(str).str.contains(ef_report, case=False, na=False)]
+                        disp_exp = disp_exp[disp_exp["report_no"].astype(str).str.contains(ef_report, case=False, na=False, regex=False)]
                     if ef_party:
-                        disp_exp = disp_exp[disp_exp["party_name"].astype(str).str.contains(ef_party, case=False, na=False)]
+                        disp_exp = disp_exp[disp_exp["party_name"].astype(str).str.contains(ef_party, case=False, na=False, regex=False)]
                     if ef_status != "All":
                         disp_exp = disp_exp[disp_exp["stock_status"] == ef_status]
+                    if download_location is not None:
+                        disp_exp = disp_exp[disp_exp["export_location"].astype(str) == download_location]
+                    export_days = pd.to_datetime(disp_exp["export_date"], format="%d-%m-%Y", errors="coerce")
+                    if download_from:
+                        disp_exp = disp_exp[export_days >= pd.Timestamp(download_from)]
+                    if download_to:
+                        disp_exp = disp_exp[export_days.reindex(disp_exp.index) <= pd.Timestamp(download_to)]
+                    invalid_range = download_from and download_to and download_from > download_to
+                    st.markdown('<div class="export-file-note">Excel file · All matching export records</div>', unsafe_allow_html=True)
+                    if invalid_range:
+                        st.warning("From date must be on or before To date.")
+                    elif disp_exp.empty:
+                        st.info("No exported stones match these filters.")
+                    else:
+                        # INR columns
+                        pc_e  = pd.to_numeric(disp_exp["per_carat"], errors="coerce").fillna(0)
+                        amt_e = pd.to_numeric(disp_exp["amount"],    errors="coerce").fillna(0)
+                        br_e  = pd.to_numeric(disp_exp["bank_rate"], errors="coerce").fillna(0)
+                        db_inr_pc_e    = pd.to_numeric(disp_exp.get("inr_pc",    pd.Series(dtype=float)), errors="coerce")
+                        db_inr_total_e = pd.to_numeric(disp_exp.get("inr_total", pd.Series(dtype=float)), errors="coerce")
+                        disp_exp["INR P/C"]   = db_inr_pc_e.where(db_inr_pc_e.notna() & (db_inr_pc_e != 0), round(pc_e * br_e, 2))
+                        disp_exp["INR TOTAL"] = db_inr_total_e.where(db_inr_total_e.notna() & (db_inr_total_e != 0), round(amt_e * br_e, 2))
 
-                    # INR columns
-                    pc_e  = pd.to_numeric(disp_exp["per_carat"], errors="coerce").fillna(0)
-                    amt_e = pd.to_numeric(disp_exp["amount"],    errors="coerce").fillna(0)
-                    br_e  = pd.to_numeric(disp_exp["bank_rate"], errors="coerce").fillna(0)
-                    db_inr_pc_e    = pd.to_numeric(disp_exp.get("inr_pc",    pd.Series(dtype=float)), errors="coerce")
-                    db_inr_total_e = pd.to_numeric(disp_exp.get("inr_total", pd.Series(dtype=float)), errors="coerce")
-                    disp_exp["INR P/C"]   = db_inr_pc_e.where(db_inr_pc_e.notna() & (db_inr_pc_e != 0), round(pc_e * br_e, 2))
-                    disp_exp["INR TOTAL"] = db_inr_total_e.where(db_inr_total_e.notna() & (db_inr_total_e != 0), round(amt_e * br_e, 2))
+                        disp_exp = disp_exp.rename(columns={
+                            "buyer_name":        "BUYER",
+                            "buying_date":       "DATE",
+                            "party_name":        "PARTY",
+                            "report_no":         "REPORT NO",
+                            "lab":               "LAB",
+                            "diamond_type":      "TYPE",
+                            "shape":             "SHAPE",
+                            "cts":               "CTS",
+                            "color":             "COLOR",
+                            "clarity":           "CLARITY",
+                            "per_carat":         "$P/CT",
+                            "amount":            "AMT USD",
+                            "bank_rate":         "BANK RATE",
+                            "location":          "LOCATION",
+                            "remark":            "REMARK",
+                            "stock_status":      "STATUS",
+                            "lot_no":            "LOT NO",
+                            "exported_at":       "EXPORTED AT",
+                            "export_date":       "EXPORT DATE",
+                            "export_location":   "EXPORT LOCATION",
+                            "export_part":       "EXPORT PART",
+                        })
+                        disp_exp.drop(["inr_pc", "inr_total"], axis=1, inplace=True, errors="ignore")
 
-                    disp_exp = disp_exp.rename(columns={
-                        "buyer_name":        "BUYER",
-                        "buying_date":       "DATE",
-                        "party_name":        "PARTY",
-                        "report_no":         "REPORT NO",
-                        "lab":               "LAB",
-                        "diamond_type":      "TYPE",
-                        "shape":             "SHAPE",
-                        "cts":               "CTS",
-                        "color":             "COLOR",
-                        "clarity":           "CLARITY",
-                        "per_carat":         "$P/CT",
-                        "amount":            "AMT USD",
-                        "bank_rate":         "BANK RATE",
-                        "location":          "LOCATION",
-                        "remark":            "REMARK",
-                        "stock_status":      "STATUS",
-                        "lot_no":            "LOT NO",
-                        "exported_at":       "EXPORTED AT",
-                        "export_date":       "EXPORT DATE",
-                        "export_location":   "EXPORT LOCATION",
-                        "export_part":       "EXPORT PART",
-                    })
-                    disp_exp.drop(["inr_pc", "inr_total"], axis=1, inplace=True, errors="ignore")
-                    st.dataframe(disp_exp, use_container_width=True, height=560)
-
-                    # Excel download
-                    import io as _exp_io
-                    exp_buf = _exp_io.BytesIO()
-                    disp_exp.to_excel(exp_buf, index=False, engine="openpyxl")
-                    exp_buf.seek(0)
-                    st.download_button(
-                        label="⬇ Download Export Data (.xlsx)",
-                        data=exp_buf,
-                        file_name=f"Export_Data_{datetime.now().strftime('%d%m%Y_%H%M%S')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="export_data_dl_btn",
-                    )
-
-                    # Undo export section (admin only)
-                    if is_admin:
-                        st.markdown("---")
-                        st.markdown(_label("↩️  Undo Export — paste certificates to move back to Buying Stock", margin_bottom=10), unsafe_allow_html=True)
-                        undo_text = st.text_area(
-                            "Certificates to Undo",
-                            key="undo_export_box",
-                            placeholder="LG123456\nLG789012\n...",
-                            height=120,
-                            label_visibility="collapsed",
+                        # Excel download
+                        import io as _exp_io
+                        exp_buf = _exp_io.BytesIO()
+                        disp_exp.to_excel(exp_buf, index=False, engine="openpyxl")
+                        exp_buf.seek(0)
+                        st.download_button(
+                            label="Download Excel", type="primary", use_container_width=True,
+                            data=exp_buf,
+                            file_name=f"Export_Data_{datetime.now().strftime('%d%m%Y_%H%M%S')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="export_data_dl_btn",
                         )
-                        if st.button("↩️ Undo Export", key="undo_export_btn"):
-                            if not undo_text.strip():
-                                st.warning("⚠️ Paste at least one certificate number.")
-                            else:
-                                undo_list = [normalize_cert_exp(x) for x in undo_text.splitlines() if x.strip()]
-                                undone = undo_not_found = 0
-                                for report_no in undo_list:
+
+                    st.caption("Leave filters empty to download all export records. Dates use the export date.")
+            if is_admin:
+                with st.expander("Undo export"):
+                    st.markdown(_label("↩️  Undo Export — paste certificates to move back to Buying Stock", margin_bottom=10), unsafe_allow_html=True)
+                    undo_text = st.text_area(
+                        "Certificates to Undo",
+                        key="undo_export_box",
+                        placeholder="LG123456\nLG789012\n...",
+                        height=120,
+                        label_visibility="collapsed",
+                    )
+                    if st.button("↩️ Undo Export", key="undo_export_btn"):
+                        if not undo_text.strip():
+                            st.warning("⚠️ Paste at least one certificate number.")
+                        else:
+                            undo_list = [normalize_cert_exp(x) for x in undo_text.splitlines() if x.strip()]
+                            undone = undo_not_found = 0
+                            for report_no in undo_list:
+                                cursor.execute(
+                                    "SELECT report_no FROM buying_stock WHERE report_no=? AND exported_at IS NOT NULL AND exported_at != ''",
+                                    (report_no,),
+                                )
+                                if cursor.fetchone():
                                     cursor.execute(
-                                        "SELECT report_no FROM buying_stock WHERE report_no=? AND exported_at IS NOT NULL AND exported_at != ''",
+                                        "UPDATE buying_stock SET exported_at=NULL WHERE report_no=?",
                                         (report_no,),
                                     )
-                                    if cursor.fetchone():
-                                        cursor.execute(
-                                            "UPDATE buying_stock SET exported_at=NULL WHERE report_no=?",
-                                            (report_no,),
-                                        )
-                                        undone += 1
-                                    else:
-                                        undo_not_found += 1
-                                conn.commit()
-                                if undone:
-                                    st.success(f"↩️ {undone} stone(s) moved back to Buying Stock")
-                                if undo_not_found:
-                                    st.warning(f"⚠️ {undo_not_found} certificate(s) not found in export list")
-                                st.rerun()
+                                    undone += 1
+                                else:
+                                    undo_not_found += 1
+                            conn.commit()
+                            if undone:
+                                st.success(f"↩️ {undone} stone(s) moved back to Buying Stock")
+                            if undo_not_found:
+                                st.warning(f"⚠️ {undo_not_found} certificate(s) not found in export list")
+                            st.rerun()
+
 
     if not is_video:
         if is_admin:
