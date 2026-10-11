@@ -1992,21 +1992,8 @@ try:
                 with st.container(key="export_download_panel"):
                     st.subheader("Download export data")
                     st.caption("Download exported stone records as an Excel file.")
-                    date_from_col, date_to_col = st.columns(2)
-                    download_from = date_from_col.date_input("From", value=None, key="export_download_from", format="DD-MM-YYYY")
-                    download_to = date_to_col.date_input("To", value=None, key="export_download_to", format="DD-MM-YYYY")
-                    download_location = st.text_input("Location", placeholder="Leave empty for all locations", key="export_download_location_text").strip()
-                    with st.expander("More filters"):
-                        ef_report = st.text_input("Report No", key="exp_report_filter")
-                        ef_party = st.text_input("Party", key="exp_party_filter")
-                        ef_status = st.selectbox("Status", ["All", "LIVE", "LOT"], key="exp_status_filter")
-                    invalid_range = bool(download_from and download_to and download_from > download_to)
-                    st.markdown('<div class="export-file-note">Excel file · All matching export records</div>', unsafe_allow_html=True)
-                    if invalid_range:
-                        st.warning("From date must be on or before To date.")
-                    def build_export_excel(download_from=download_from, download_to=download_to,
-                                           download_location=download_location, ef_report=ef_report,
-                                           ef_party=ef_party, ef_status=ef_status, database_url=url):
+                    st.markdown('<div class="export-file-note">Excel file · All exported records</div>', unsafe_allow_html=True)
+                    def build_export_excel(database_url=url):
                         download_conn = connect(database_url)
                         try:
                             exp_data_df = read_frame(
@@ -2024,19 +2011,6 @@ try:
                             )
 
                             disp_exp = exp_data_df.copy()
-                            if ef_report:
-                                disp_exp = disp_exp[disp_exp["report_no"].astype(str).str.contains(ef_report, case=False, na=False, regex=False)]
-                            if ef_party:
-                                disp_exp = disp_exp[disp_exp["party_name"].astype(str).str.contains(ef_party, case=False, na=False, regex=False)]
-                            if ef_status != "All":
-                                disp_exp = disp_exp[disp_exp["stock_status"] == ef_status]
-                            if download_location:
-                                disp_exp = disp_exp[disp_exp["export_location"].astype(str) == download_location]
-                            export_days = pd.to_datetime(disp_exp["export_date"], format="%d-%m-%Y", errors="coerce")
-                            if download_from:
-                                disp_exp = disp_exp[export_days >= pd.Timestamp(download_from)]
-                            if download_to:
-                                disp_exp = disp_exp[export_days.reindex(disp_exp.index) <= pd.Timestamp(download_to)]
                             # INR columns
                             pc_e  = pd.to_numeric(disp_exp["per_carat"], errors="coerce").fillna(0)
                             amt_e = pd.to_numeric(disp_exp["amount"],    errors="coerce").fillna(0)
@@ -2084,9 +2058,9 @@ try:
                         file_name=f"Export_Data_{datetime.now().strftime('%d%m%Y_%H%M%S')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key="export_data_dl_btn", type="primary", use_container_width=True,
-                        on_click="ignore", disabled=invalid_range,
+                        on_click="ignore",
                     )
-                    st.caption("Leave filters empty to download all export records. Dates use the export date.")
+                    st.caption("Excel is generated only when you click Download Excel.")
             if is_admin:
                 with st.expander("Undo export"):
                     st.markdown(_label("↩️  Undo Export — paste certificates to move back to Buying Stock", margin_bottom=10), unsafe_allow_html=True)
