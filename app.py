@@ -706,187 +706,211 @@ try:
         # ══════════════════════════════════════════════════════════════════════════
     if not is_video:
         if tab2:
-            st.markdown("""
-<style>
-[data-testid="stAppViewContainer"]:has(.stock-page-marker)::before {display:none;}
-.stock-title {display:flex;align-items:center;gap:24px;margin:0 0 18px;}
-.stock-title h2 {font-size:28px;margin:0;color:#102842;}
-.stock-title span {font-size:14px;color:#7b889b;}
-.st-key-stock_filters {background:#fff!important;border:1px solid #dce5ed!important;border-radius:12px;padding:18px;}
-.stock-count {font-size:17px;font-weight:700;color:#102842;padding-top:9px;}
-.stock-count small {font-size:12px;font-weight:400;color:#7b889b;margin-left:12px;}
-.stock-table-wrap {overflow:auto;border:1px solid #dce5ed;border-radius:10px;background:#fff;max-height:570px;}
-.stock-table {width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;color:#18324b;}
-.stock-table th {position:sticky;top:0;background:#f4f7fa;padding:13px 14px;text-align:left;font-weight:650;border-bottom:1px solid #dce5ed;z-index:1;}
-.stock-table td {padding:10px 14px;border-bottom:1px solid #edf0f4;}
-.stock-table tr:nth-child(even) td {background:#f7f9fb;}
-.stock-table tr:hover td {background:#edf7f8;}
-.stock-table .num {text-align:right;}
-.stock-pill {display:inline-block;padding:4px 9px;border-radius:7px;font-size:12px;font-weight:600;}
-.stock-pill.pending {background:#fff0dd;color:#9b530e;}
-.stock-pill.lot {background:#dff1f2;color:#087083;}
-@media(max-width:760px) {.stock-title {display:block;} .stock-title span {display:block;margin-top:6px;}}
-</style><div class="stock-page-marker"></div>
-<div class="stock-title"><h2>Buying Stock</h2><span>Search and review your diamond inventory.</span></div>
-""", unsafe_allow_html=True)
-            base_where = "stock_status IN ('LIVE','LOT') AND (exported_at IS NULL OR exported_at='')"
-            cursor.execute("SELECT DISTINCT party_name FROM buying_stock WHERE " + base_where + " AND COALESCE(party_name,'')<>'' ORDER BY party_name")
-            parties = [r[0] for r in cursor.fetchall()]
-            cursor.execute("SELECT DISTINCT shape FROM buying_stock WHERE " + base_where + " AND COALESCE(shape,'')<>'' ORDER BY shape")
-            shapes = [r[0] for r in cursor.fetchall()]
-            def clear_stock_filters():
-                for key, value in {"bs_report":"", "bs_party":None, "bs_shape":None, "bs_status":"All statuses", "bs_date":None, "bs_remark":""}.items():
-                    st.session_state[key] = value
-                st.session_state["bs_applied"] = {}
-                st.session_state["stock_page"] = 1
-            with st.form("stock_filters"):
-                f1, f2, f3, f4 = st.columns(4)
-                report = f1.text_input("Report No", key="bs_report", placeholder="Search report number")
-                party = f2.selectbox("Party", parties, index=None, placeholder="All parties", key="bs_party")
-                shape = f3.selectbox("Shape", shapes, index=None, placeholder="All shapes", key="bs_shape")
-                status = f4.selectbox("Status", ["All statuses", "Not processed", "Lot generated"], key="bs_status")
-                with st.expander("More filters"):
-                    d1, d2 = st.columns(2)
-                    day = d1.date_input("Buying date", value=None, key="bs_date", format="DD-MM-YYYY")
-                    remark = d2.text_input("Remark", key="bs_remark", placeholder="Search remark")
-                _, apply_col, clear_col = st.columns([6, 1.5, 1.5])
-                applied = apply_col.form_submit_button("Apply filters", type="primary", use_container_width=True)
-                clear_col.form_submit_button("Clear filters", on_click=clear_stock_filters, use_container_width=True)
-            if applied:
-                st.session_state["bs_applied"] = {"report":report.strip(), "party":party, "shape":shape, "status":status, "date":day.strftime("%d-%m-%Y") if day else "", "remark":remark.strip()}
-                st.session_state["stock_page"] = 1
-            filters = st.session_state.get("bs_applied", {})
-            clauses, params = [base_where], []
-            for key, column in [("report","report_no"),("date","buying_date"),("remark","remark")]:
-                if filters.get(key):
-                    clauses.append(f"POSITION(LOWER(?) IN LOWER(COALESCE({column},''))) > 0")
-                    params.append(filters[key])
-            for key, column in [("party","party_name"),("shape","shape")]:
-                if filters.get(key):
-                    clauses.append(column + "=?")
-                    params.append(filters[key])
-            if filters.get("status") in ("Not processed", "Lot generated"):
-                clauses.append("stock_status=?")
-                params.append("LIVE" if filters["status"] == "Not processed" else "LOT")
-            where_sql = " AND ".join(clauses)
-            cursor.execute("SELECT COUNT(*) FROM buying_stock WHERE " + where_sql, params)
-            total_stones = cursor.fetchone()[0]
-            default_cols = ["REPORT NO","PARTY","SHAPE","CTS","COLOR","CLARITY","$P/CT","AMT USD","STATUS"]
-            all_cols = default_cols + ["BUYER","DATE","LAB","TYPE","INR P/C","INR TOTAL","BANK RATE","LOCATION","REMARK"]
-            sort_options = {"Newest first":"id DESC", "Oldest first":"id ASC", "Carats: high to low":"cts DESC NULLS LAST, id DESC", "Carats: low to high":"cts ASC NULLS LAST, id DESC", "Amount: high to low":"amount DESC NULLS LAST, id DESC", "Amount: low to high":"amount ASC NULLS LAST, id DESC"}
-            count_col, cols_col, sort_col, export_col = st.columns([4,1.2,2,1.4])
-            with cols_col:
-                with st.popover("Columns", use_container_width=True):
-                    selected_cols = st.multiselect("Visible columns", all_cols, default=default_cols, key="bs_columns")
-            sort_label = sort_col.selectbox("Sort", list(sort_options), key="bs_sort", label_visibility="collapsed")
-            export_clicked = export_col.button("Export Excel", key="prepare_stock_excel", use_container_width=True)
-            page_size = st.session_state.get("bs_page_size", 200)
-            signature = tuple(params) + (where_sql, sort_label, page_size)
-            if st.session_state.get("stock_filter_signature") != signature:
-                st.session_state["stock_page"] = 1
-                st.session_state["stock_filter_signature"] = signature
-            page_count = max(1, (total_stones + page_size - 1)//page_size)
-            page = min(max(1,st.session_state.get("stock_page",1)),page_count)
-            st.session_state["stock_page"] = page
-            first = (page-1)*page_size+1 if total_stones else 0
-            last = min(page*page_size,total_stones)
-            count_col.markdown(f'<div class="stock-count">{total_stones:,} matching stones <small>Showing {first:,}–{last:,}</small></div>', unsafe_allow_html=True)
-            stock_select = "SELECT buyer_name,buying_date,party_name,report_no,lab,diamond_type,shape,cts,color,clarity,per_carat,amount,bank_rate,location,remark,inr_pc,inr_total,stock_status FROM buying_stock WHERE "
-            order_sql = " ORDER BY " + sort_options[sort_label]
-            fdf = read_frame(stock_select + where_sql + order_sql + " LIMIT ? OFFSET ?", conn, params=params+[page_size,(page-1)*page_size])
-            def format_stock(source):
-                # Computed INR columns — use DB stored value if available, else calculate
-                display_df = source.copy()
-                display_df["status_label"] = display_df["stock_status"].map({"LIVE":"Not Processed", "LOT":"Lot Generated"}).fillna(display_df["stock_status"])
-                pc  = pd.to_numeric(display_df["per_carat"], errors="coerce").fillna(0)
-                amt = pd.to_numeric(display_df["amount"],    errors="coerce").fillna(0)
-                br  = pd.to_numeric(display_df["bank_rate"], errors="coerce").fillna(0)
-                db_inr_pc    = pd.to_numeric(display_df.get("inr_pc",    pd.Series()), errors="coerce")
-                db_inr_total = pd.to_numeric(display_df.get("inr_total", pd.Series()), errors="coerce")
-                display_df["INR P/C"]   = db_inr_pc.where(db_inr_pc.notna()   & (db_inr_pc   != 0), round(pc  * br, 2))
-                display_df["INR TOTAL"] = db_inr_total.where(db_inr_total.notna() & (db_inr_total != 0), round(amt * br, 2))
+            with st.container(key="buying_stock_page"):
+                st.markdown("""
+    <style>
+    .st-key-buying_stock_page [data-testid="stForm"] {background:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:18px!important;}
+    .st-key-buying_stock_page .stock-title h2 {font-size:28px!important;line-height:1.3!important;font-weight:700!important;color:#102842!important;margin:0!important;padding:0!important;}
+    .st-key-buying_stock_page .stock-title span {font-size:14px!important;line-height:1.5!important;color:#748398!important;}
+    .st-key-buying_stock_page [data-baseweb="input"],
+    .st-key-buying_stock_page [data-baseweb="input"] input,
+    .st-key-buying_stock_page [data-baseweb="select"]>div,
+    .st-key-buying_stock_page [data-baseweb="select"] input {background-color:#ffffff!important;color:#18324b!important;}
+    .st-key-buying_stock_page [data-baseweb="input"],
+    .st-key-buying_stock_page [data-baseweb="select"]>div {border:1px solid #dce5ed!important;border-radius:8px!important;}
+    .st-key-buying_stock_page [data-testid="stFormSubmitButton"] button[kind="primaryFormSubmit"],
+    .st-key-buying_stock_page [data-testid="stFormSubmitButton"] button[kind="primary"] {background:#087f8c!important;border-color:#087f8c!important;color:white!important;}
+    .st-key-buying_stock_page [data-testid="stFormSubmitButton"] button[kind="primaryFormSubmit"] p {color:white!important;}
+    .st-key-stock_toolbar,.st-key-stock_pagination {background:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:10px!important;padding:12px 14px!important;}
+    .st-key-buying_stock_page .stock-count {font-size:17px!important;}
+    .st-key-buying_stock_page .stock-count small {font-size:12px!important;}
+    .st-key-buying_stock_page .stock-table-wrap {background:#ffffff!important;}
+    .st-key-buying_stock_page .stock-table {font-size:13px!important;background:#ffffff!important;}
+    .st-key-buying_stock_page .stock-table th {font-size:13px!important;background:#f4f7fa!important;}
+    .st-key-buying_stock_page .stock-table td {font-size:13px!important;background:#ffffff!important;}
+    .st-key-buying_stock_page .stock-table tr:nth-child(even) td {background:#f7f9fb!important;}
 
-                display_df = display_df.rename(columns={
-                    "buyer_name":    "BUYER",
-                    "buying_date":   "DATE",
-                    "party_name":    "PARTY",
-                    "report_no":     "REPORT NO",
-                    "lab":           "LAB",
-                    "diamond_type":  "TYPE",
-                    "shape":         "SHAPE",
-                    "cts":           "CTS",
-                    "color":         "COLOR",
-                    "clarity":       "CLARITY",
-                    "per_carat":     "$P/CT",
-                    "amount":        "AMT USD",
-                    "bank_rate":     "BANK RATE",
-                    "location":      "LOCATION",
-                    "remark":        "REMARK",
-                    "status_label":  "STATUS",
-                })
-                display_df.drop(["inr_pc", "inr_total", "stock_status"], axis=1, inplace=True, errors="ignore")
+    [data-testid="stAppViewContainer"]:has(.stock-page-marker)::before {display:none;}
+    .stock-title {display:flex;align-items:center;gap:24px;margin:0 0 18px;}
+    .stock-title h2 {font-size:28px;margin:0;color:#102842;}
+    .stock-title span {font-size:14px;color:#7b889b;}
+    .st-key-stock_filters {background:#fff!important;border:1px solid #dce5ed!important;border-radius:12px;padding:18px;}
+    .stock-count {font-size:17px;font-weight:700;color:#102842;padding-top:9px;}
+    .stock-count small {font-size:12px;font-weight:400;color:#7b889b;margin-left:12px;}
+    .stock-table-wrap {overflow:auto;border:1px solid #dce5ed;border-radius:10px;background:#fff;max-height:570px;}
+    .stock-table {width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;color:#18324b;}
+    .stock-table th {position:sticky;top:0;background:#f4f7fa;padding:13px 14px;text-align:left;font-weight:650;border-bottom:1px solid #dce5ed;z-index:1;}
+    .stock-table td {padding:10px 14px;border-bottom:1px solid #edf0f4;}
+    .stock-table tr:nth-child(even) td {background:#f7f9fb;}
+    .stock-table tr:hover td {background:#edf7f8;}
+    .stock-table .num {text-align:right;}
+    .stock-pill {display:inline-block;padding:4px 9px;border-radius:7px;font-size:12px;font-weight:600;}
+    .stock-pill.pending {background:#fff0dd;color:#9b530e;}
+    .stock-pill.lot {background:#dff1f2;color:#087083;}
+    @media(max-width:760px) {.stock-title {display:block;} .stock-title span {display:block;margin-top:6px;}}
+    </style><div class="stock-page-marker"></div>
+    <div class="stock-title"><h2>Buying Stock</h2><span>Search and review your diamond inventory.</span></div>
+    """, unsafe_allow_html=True)
+                base_where = "stock_status IN ('LIVE','LOT') AND (exported_at IS NULL OR exported_at='')"
+                cursor.execute("SELECT DISTINCT party_name FROM buying_stock WHERE " + base_where + " AND COALESCE(party_name,'')<>'' ORDER BY party_name")
+                parties = [r[0] for r in cursor.fetchall()]
+                cursor.execute("SELECT DISTINCT shape FROM buying_stock WHERE " + base_where + " AND COALESCE(shape,'')<>'' ORDER BY shape")
+                shapes = [r[0] for r in cursor.fetchall()]
+                def clear_stock_filters():
+                    for key, value in {"bs_report":"", "bs_party":None, "bs_shape":None, "bs_status":"All statuses", "bs_date":None, "bs_remark":""}.items():
+                        st.session_state[key] = value
+                    st.session_state["bs_applied"] = {}
+                    st.session_state["stock_page"] = 1
+                with st.form("stock_filters"):
+                    f1, f2, f3, f4 = st.columns(4)
+                    report = f1.text_input("Report No", key="bs_report", placeholder="Search report number")
+                    party = f2.selectbox("Party", parties, index=None, placeholder="All parties", key="bs_party")
+                    shape = f3.selectbox("Shape", shapes, index=None, placeholder="All shapes", key="bs_shape")
+                    status = f4.selectbox("Status", ["All statuses", "Not processed", "Lot generated"], key="bs_status")
+                    with st.expander("More filters"):
+                        d1, d2 = st.columns(2)
+                        day = d1.date_input("Buying date", value=None, key="bs_date", format="DD-MM-YYYY")
+                        remark = d2.text_input("Remark", key="bs_remark", placeholder="Search remark")
+                    _, apply_col, clear_col = st.columns([6, 1.5, 1.5])
+                    applied = apply_col.form_submit_button("Apply filters", type="primary", use_container_width=True)
+                    clear_col.form_submit_button("Clear filters", on_click=clear_stock_filters, use_container_width=True)
+                if applied:
+                    st.session_state["bs_applied"] = {"report":report.strip(), "party":party, "shape":shape, "status":status, "date":day.strftime("%d-%m-%Y") if day else "", "remark":remark.strip()}
+                    st.session_state["stock_page"] = 1
+                filters = st.session_state.get("bs_applied", {})
+                clauses, params = [base_where], []
+                for key, column in [("report","report_no"),("date","buying_date"),("remark","remark")]:
+                    if filters.get(key):
+                        clauses.append(f"POSITION(LOWER(?) IN LOWER(COALESCE({column},''))) > 0")
+                        params.append(filters[key])
+                for key, column in [("party","party_name"),("shape","shape")]:
+                    if filters.get(key):
+                        clauses.append(column + "=?")
+                        params.append(filters[key])
+                if filters.get("status") in ("Not processed", "Lot generated"):
+                    clauses.append("stock_status=?")
+                    params.append("LIVE" if filters["status"] == "Not processed" else "LOT")
+                where_sql = " AND ".join(clauses)
+                cursor.execute("SELECT COUNT(*) FROM buying_stock WHERE " + where_sql, params)
+                total_stones = cursor.fetchone()[0]
+                default_cols = ["REPORT NO","PARTY","SHAPE","CTS","COLOR","CLARITY","$P/CT","AMT USD","STATUS"]
+                all_cols = default_cols + ["BUYER","DATE","LAB","TYPE","INR P/C","INR TOTAL","BANK RATE","LOCATION","REMARK"]
+                sort_options = {"Newest first":"id DESC", "Oldest first":"id ASC", "Carats: high to low":"cts DESC NULLS LAST, id DESC", "Carats: low to high":"cts ASC NULLS LAST, id DESC", "Amount: high to low":"amount DESC NULLS LAST, id DESC", "Amount: low to high":"amount ASC NULLS LAST, id DESC"}
+                with st.container(key="stock_toolbar"):
+                    count_col, cols_col, sort_col, export_col = st.columns([4,1.2,2,1.4])
+                    with cols_col:
+                        with st.popover("Columns", use_container_width=True):
+                            selected_cols = st.multiselect("Visible columns", all_cols, default=default_cols, key="bs_columns")
+                    sort_label = sort_col.selectbox("Sort", list(sort_options), key="bs_sort", label_visibility="collapsed")
+                    export_clicked = export_col.button("Export Excel", key="prepare_stock_excel", use_container_width=True)
+                page_size = st.session_state.get("bs_page_size", 200)
+                signature = tuple(params) + (where_sql, sort_label, page_size)
+                if st.session_state.get("stock_filter_signature") != signature:
+                    st.session_state["stock_page"] = 1
+                    st.session_state["stock_filter_signature"] = signature
+                page_count = max(1, (total_stones + page_size - 1)//page_size)
+                page = min(max(1,st.session_state.get("stock_page",1)),page_count)
+                st.session_state["stock_page"] = page
+                first = (page-1)*page_size+1 if total_stones else 0
+                last = min(page*page_size,total_stones)
+                count_col.markdown(f'<div class="stock-count">{total_stones:,} matching stones <small>Showing {first:,}–{last:,}</small></div>', unsafe_allow_html=True)
+                stock_select = "SELECT buyer_name,buying_date,party_name,report_no,lab,diamond_type,shape,cts,color,clarity,per_carat,amount,bank_rate,location,remark,inr_pc,inr_total,stock_status FROM buying_stock WHERE "
+                order_sql = " ORDER BY " + sort_options[sort_label]
+                fdf = read_frame(stock_select + where_sql + order_sql + " LIMIT ? OFFSET ?", conn, params=params+[page_size,(page-1)*page_size])
+                def format_stock(source):
+                    # Computed INR columns — use DB stored value if available, else calculate
+                    display_df = source.copy()
+                    display_df["status_label"] = display_df["stock_status"].map({"LIVE":"Not Processed", "LOT":"Lot Generated"}).fillna(display_df["stock_status"])
+                    pc  = pd.to_numeric(display_df["per_carat"], errors="coerce").fillna(0)
+                    amt = pd.to_numeric(display_df["amount"],    errors="coerce").fillna(0)
+                    br  = pd.to_numeric(display_df["bank_rate"], errors="coerce").fillna(0)
+                    db_inr_pc    = pd.to_numeric(display_df.get("inr_pc",    pd.Series()), errors="coerce")
+                    db_inr_total = pd.to_numeric(display_df.get("inr_total", pd.Series()), errors="coerce")
+                    display_df["INR P/C"]   = db_inr_pc.where(db_inr_pc.notna()   & (db_inr_pc   != 0), round(pc  * br, 2))
+                    display_df["INR TOTAL"] = db_inr_total.where(db_inr_total.notna() & (db_inr_total != 0), round(amt * br, 2))
 
-                # ── Exact column order as requested ───────────────────────────────
-                _bs_col_order = [
-                    "BUYER", "DATE", "PARTY", "REPORT NO", "LAB", "TYPE", "SHAPE",
-                    "CTS", "COLOR", "CLARITY", "$P/CT", "AMT USD", "INR P/C",
-                    "INR TOTAL", "BANK RATE", "LOCATION", "REMARK", "STATUS",
-                ]
-                display_df = display_df[[c for c in _bs_col_order if c in display_df.columns]]
+                    display_df = display_df.rename(columns={
+                        "buyer_name":    "BUYER",
+                        "buying_date":   "DATE",
+                        "party_name":    "PARTY",
+                        "report_no":     "REPORT NO",
+                        "lab":           "LAB",
+                        "diamond_type":  "TYPE",
+                        "shape":         "SHAPE",
+                        "cts":           "CTS",
+                        "color":         "COLOR",
+                        "clarity":       "CLARITY",
+                        "per_carat":     "$P/CT",
+                        "amount":        "AMT USD",
+                        "bank_rate":     "BANK RATE",
+                        "location":      "LOCATION",
+                        "remark":        "REMARK",
+                        "status_label":  "STATUS",
+                    })
+                    display_df.drop(["inr_pc", "inr_total", "stock_status"], axis=1, inplace=True, errors="ignore")
 
-                # ── DATE ko real date dtype banao taaki sorting text ki jagah ──────
-                # chronological ho (column header pe click karke ascending/descending)
-                if "DATE" in display_df.columns:
-                    display_df["DATE"] = pd.to_datetime(
-                        display_df["DATE"], format="%d-%m-%Y", errors="coerce"
-                    )
+                    # ── Exact column order as requested ───────────────────────────────
+                    _bs_col_order = [
+                        "BUYER", "DATE", "PARTY", "REPORT NO", "LAB", "TYPE", "SHAPE",
+                        "CTS", "COLOR", "CLARITY", "$P/CT", "AMT USD", "INR P/C",
+                        "INR TOTAL", "BANK RATE", "LOCATION", "REMARK", "STATUS",
+                    ]
+                    display_df = display_df[[c for c in _bs_col_order if c in display_df.columns]]
 
-                return display_df
+                    # ── DATE ko real date dtype banao taaki sorting text ki jagah ──────
+                    # chronological ho (column header pe click karke ascending/descending)
+                    if "DATE" in display_df.columns:
+                        display_df["DATE"] = pd.to_datetime(
+                            display_df["DATE"], format="%d-%m-%Y", errors="coerce"
+                        )
+
+                    return display_df
 
 
-            display_df = format_stock(fdf)
-            if export_clicked:
-                import io
-                with st.spinner("Preparing all matching stones..."):
-                    export_df = read_frame(stock_select + where_sql + order_sql, conn, params=params)
-                    export_buffer = io.BytesIO()
-                    format_stock(export_df).to_excel(export_buffer, index=False, engine="openpyxl")
-                st.download_button("Download Excel", data=export_buffer.getvalue(), file_name=f"Buying_Stock_{datetime.now().strftime('%d%m%Y')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="buying_stock_excel_dl", on_click="ignore")
-            labels = {"REPORT NO":"Report No", "PARTY":"Party", "SHAPE":"Shape", "CTS":"Carats", "COLOR":"Color", "CLARITY":"Clarity", "$P/CT":"USD/ct", "AMT USD":"Amount USD", "STATUS":"Status", "BUYER":"Buyer", "DATE":"Date", "LAB":"Lab", "TYPE":"Type", "INR P/C":"INR/ct", "INR TOTAL":"Amount INR", "BANK RATE":"Bank rate", "LOCATION":"Location", "REMARK":"Remark"}
-            numeric_cols = {"CTS","$P/CT","AMT USD","INR P/C","INR TOTAL","BANK RATE"}
-            if not selected_cols:
-                st.info("Select at least one column from Columns.")
-            elif display_df.empty:
-                st.info("No stones match your filters. Try clearing the filters.")
-            else:
-                headings = ''.join(f'<th class="{"num" if col in numeric_cols else ""}">{labels[col]}</th>' for col in selected_cols)
-                rows = []
-                for record in display_df[selected_cols].itertuples(index=False, name=None):
-                    cells = []
-                    for col, value in zip(selected_cols,record):
-                        if pd.isna(value):
-                            text = ""
-                        elif col in numeric_cols:
-                            text = f"{float(value):,.2f}"
-                        elif col == "DATE":
-                            text = value.strftime("%d-%m-%Y")
-                        else:
-                            text = str(value)
-                        text = escape(text)
-                        if col == "STATUS":
-                            style = "pending" if value == "Not Processed" else "lot"
-                            text = f'<span class="stock-pill {style}">{text}</span>'
-                        cells.append(f'<td class="{"num" if col in numeric_cols else ""}">{text}</td>')
-                    rows.append('<tr>'+''.join(cells)+'</tr>')
-                st.markdown('<div class="stock-table-wrap"><table class="stock-table"><thead><tr>'+headings+'</tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>', unsafe_allow_html=True)
-            def change_stock_page(delta):
-                st.session_state["stock_page"] = max(1,min(page_count,st.session_state["stock_page"]+delta))
-            size_col, page_col, prev_col, next_col = st.columns([2,5,1.5,1.5])
-            size_col.selectbox("Rows per page", [50,100,200], index=2, key="bs_page_size")
-            page_col.markdown(f'<div style="text-align:center;padding-top:28px;color:#52647b;">Page {page} of {page_count}</div>', unsafe_allow_html=True)
-            prev_col.button("← Previous", disabled=page<=1, on_click=change_stock_page, args=(-1,), use_container_width=True)
-            next_col.button("Next →", disabled=page>=page_count, on_click=change_stock_page, args=(1,), use_container_width=True)
-            st.caption("Sort applies to all matching stones. Excel includes all matching stones and all columns.")
+                display_df = format_stock(fdf)
+                if export_clicked:
+                    import io
+                    with st.spinner("Preparing all matching stones..."):
+                        export_df = read_frame(stock_select + where_sql + order_sql, conn, params=params)
+                        export_buffer = io.BytesIO()
+                        format_stock(export_df).to_excel(export_buffer, index=False, engine="openpyxl")
+                    st.download_button("Download Excel", data=export_buffer.getvalue(), file_name=f"Buying_Stock_{datetime.now().strftime('%d%m%Y')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="buying_stock_excel_dl", on_click="ignore")
+                labels = {"REPORT NO":"Report No", "PARTY":"Party", "SHAPE":"Shape", "CTS":"Carats", "COLOR":"Color", "CLARITY":"Clarity", "$P/CT":"USD/ct", "AMT USD":"Amount USD", "STATUS":"Status", "BUYER":"Buyer", "DATE":"Date", "LAB":"Lab", "TYPE":"Type", "INR P/C":"INR/ct", "INR TOTAL":"Amount INR", "BANK RATE":"Bank rate", "LOCATION":"Location", "REMARK":"Remark"}
+                numeric_cols = {"CTS","$P/CT","AMT USD","INR P/C","INR TOTAL","BANK RATE"}
+                if not selected_cols:
+                    st.info("Select at least one column from Columns.")
+                elif display_df.empty:
+                    st.info("No stones match your filters. Try clearing the filters.")
+                else:
+                    headings = ''.join(f'<th class="{"num" if col in numeric_cols else ""}">{labels[col]}</th>' for col in selected_cols)
+                    rows = []
+                    for record in display_df[selected_cols].itertuples(index=False, name=None):
+                        cells = []
+                        for col, value in zip(selected_cols,record):
+                            if pd.isna(value):
+                                text = ""
+                            elif col in numeric_cols:
+                                text = f"{float(value):,.2f}"
+                            elif col == "DATE":
+                                text = value.strftime("%d-%m-%Y")
+                            else:
+                                text = str(value)
+                            text = escape(text)
+                            if col == "STATUS":
+                                style = "pending" if value == "Not Processed" else "lot"
+                                text = f'<span class="stock-pill {style}">{text}</span>'
+                            cells.append(f'<td class="{"num" if col in numeric_cols else ""}">{text}</td>')
+                        rows.append('<tr>'+''.join(cells)+'</tr>')
+                    st.markdown('<div class="stock-table-wrap"><table class="stock-table"><thead><tr>'+headings+'</tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>', unsafe_allow_html=True)
+                def change_stock_page(delta):
+                    st.session_state["stock_page"] = max(1,min(page_count,st.session_state["stock_page"]+delta))
+                with st.container(key="stock_pagination"):
+                    size_col, page_col, prev_col, next_col = st.columns([2,5,1.5,1.5])
+                    size_col.selectbox("Rows per page", [50,100,200], index=2, key="bs_page_size")
+                    page_col.markdown(f'<div style="text-align:center;padding-top:28px;color:#52647b;">Page {page} of {page_count}</div>', unsafe_allow_html=True)
+                    prev_col.button("← Previous", disabled=page<=1, on_click=change_stock_page, args=(-1,), use_container_width=True)
+                    next_col.button("Next →", disabled=page>=page_count, on_click=change_stock_page, args=(1,), use_container_width=True)
+                st.caption("Sort applies to all matching stones. Excel includes all matching stones and all columns.")
 
         # ══════════════════════════════════════════════════════════════════════════
         # TAB 3 — LOT GENERATED
