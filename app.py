@@ -455,26 +455,36 @@ try:
 <style>
 [data-testid="stAppViewContainer"]:has(.home-dashboard)::before {display:none;}
 .home-dashboard {display:none;}
-.hero {background:linear-gradient(115deg,#102842,#183b54);padding:28px 32px;border-radius:14px;margin-bottom:22px;}
+.hero {background:linear-gradient(115deg,#102842,#183b54);padding:20px 26px;border-radius:14px;margin-bottom:22px;}
 .hero:after {display:none;}
 .hero h1 {font-size:32px;font-weight:650;}
-.home-date {color:#d5dce4;font-size:13px;margin-top:18px;}
-.home-diamond {position:absolute;right:12%;top:24px;width:140px;height:115px;color:#c89570;opacity:.9;}
-.home-summary {display:flex;align-items:center;gap:16px;background:white;border:1px solid #dce5ed;border-radius:12px;padding:22px 18px;min-height:115px;box-sizing:border-box;}
-.home-summary-icon {display:flex;align-items:center;justify-content:center;width:46px;height:46px;flex-shrink:0;border-radius:50%;font-size:23px;color:#087f8c;background:#e7f4f5;}
+.home-date {color:#d5dce4;font-size:12px;margin-top:10px;}
+.home-diamond {position:absolute;right:12%;top:16px;width:110px;height:90px;color:#c89570;opacity:.9;}
+.home-summary {display:flex;align-items:center;gap:10px;background:white;border:1px solid #dce5ed;border-radius:10px;padding:14px 12px;min-height:88px;box-sizing:border-box;}
+.home-summary-icon {display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border-radius:50%;font-size:18px;color:#087f8c;background:#e7f4f5;}
 .home-summary.copper .home-summary-icon {color:#ad642d;background:#fbf0e7;}
 .home-summary-label {font-size:12px;color:#52647b;margin-bottom:6px;}
-.home-summary-value {font-size:25px;font-weight:700;color:#102842;letter-spacing:-.03em;overflow-wrap:anywhere;}
+.home-summary-value {font-size:clamp(16px,1.45vw,22px);font-weight:700;color:#102842;letter-spacing:-.03em;overflow-wrap:anywhere;}
 .home-summary-note {font-size:11px;color:#8793a4;margin-top:4px;}
-.home-section {font-size:25px;font-weight:700;color:#102842;margin:24px 0 14px;}
-.module-card {min-height:90px;padding:8px 2px 0 68px;position:relative;}
-.module-icon {position:absolute;left:4px;top:8px;border-radius:50%;box-shadow:none;border:0;}
+.home-section {font-size:23px;font-weight:700;color:#102842;margin:18px 0 10px;}
+.module-card {min-height:56px;padding:2px 2px 0 54px;position:relative;}
+.module-icon {position:absolute;left:4px;top:2px;width:36px;height:36px;font-size:18px;border-radius:50%;box-shadow:none;border:0;}
 .module-icon:before,.module-card:after {display:none;}
-.module-title {font-size:17px;}
-.module-copy {font-size:13px;line-height:1.6;}
-[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card) {border-radius:12px;box-shadow:none;}
-[data-testid="stVerticalBlock"]:has(.module-card) .stButton button {color:#087f8c;background:transparent;border:0;box-shadow:none;text-align:left;justify-content:flex-start;min-height:32px;padding-left:70px;}
-@media(max-width:760px) {.home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:22px;}}
+.module-title {font-size:15px;margin-bottom:4px;}
+.module-copy {font-size:12px;line-height:1.4;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card) {background:#ffffff!important;border:1px solid #dce5ed!important;border-radius:12px;box-shadow:none;}
+[data-testid="stVerticalBlock"]:has(.module-card) .stButton button {color:#087f8c;background:transparent;border:0;box-shadow:none;text-align:left;justify-content:flex-start;min-height:28px;padding-left:56px;}
+@media(min-width:761px) and (max-width:1100px) {
+[data-testid="stHorizontalBlock"]:has(.home-summary) {flex-wrap:wrap;}
+[data-testid="stHorizontalBlock"]:has(.home-summary)>[data-testid="stColumn"] {width:calc(33.333% - 12px)!important;flex:1 1 calc(33.333% - 12px)!important;min-width:0;}
+}
+@media(max-width:760px) {
+[data-testid="stHorizontalBlock"]:has(.home-summary) {flex-wrap:wrap;}
+[data-testid="stHorizontalBlock"]:has(.home-summary)>[data-testid="stColumn"] {width:calc(50% - 8px)!important;flex:1 1 calc(50% - 8px)!important;min-width:0;}
+.home-summary {padding:12px 10px;gap:8px;}
+.home-summary-icon {width:28px;height:28px;font-size:16px;}
+.home-summary-note {font-size:10px;}
+.home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:22px;}}
 </style><div class="home-dashboard"></div>
 """, unsafe_allow_html=True)
         st.markdown(
@@ -505,8 +515,8 @@ try:
                 ("Lot generated", f"{lot_stones:,}", "Stones assigned to lots", "▱"),
                 ("Not processed", f"{pending:,}", "Stones pending lot", "◷"),
             ]
-            for start in range(0, len(summaries), 3):
-                for index, (column, item) in enumerate(zip(st.columns(3), summaries[start:start+3])):
+            for start in range(0, len(summaries), 6):
+                for index, (column, item) in enumerate(zip(st.columns(6), summaries[start:start+6])):
                     label, value, note, icon = item
                     column.markdown(
                         f'<div class="home-summary {"copper" if (start+index)%2 == 0 else ""}">'
