@@ -266,38 +266,78 @@ try:
         return row[1]
 
     def login_screen():
-        _, col, _ = st.columns([1, 1.3, 1])
-        with col:
-            st.markdown('<div style="height:24px;"></div>', unsafe_allow_html=True)
-            with st.container(border=True):
-                st.markdown(
-                    '<div class="login-brand">' + BRAND_MARK_HTML +
-                    '<div class="eyebrow" style="color:#087f8c">BRIGHT TRADING INDIA LLP</div>'
-                    '<h2>Welcome back</h2>'
-                    '<p>Sign in to your diamond operations workspace.</p></div>',
-                    unsafe_allow_html=True,
-                )
-                username = st.text_input("USERNAME", key="login_user", placeholder="Enter username")
-                password = st.text_input("PASSWORD", key="login_pass", placeholder="Enter password", type="password")
-                st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-                if st.button("🔐 Sign In", key="login_btn", type="primary", use_container_width=True):
+        st.markdown("""
+<style>
+[data-testid="stAppViewContainer"]:has(.bt-login-brand)::before {display:none;}
+.block-container:has(.bt-login-brand) {max-width:1240px!important;padding-top:5vh!important;}
+[data-testid="stHorizontalBlock"]:has(.bt-login-brand) {gap:0!important;align-items:stretch;background:white;border-radius:24px;overflow:hidden;box-shadow:0 24px 70px #10284218;border:1px solid #e5eaf0;}
+[data-testid="stColumn"]:has(.bt-login-brand) {background:linear-gradient(145deg,#102842,#071a2c);}
+.bt-login-brand {position:relative;min-height:650px;padding:48px 46px 32px;overflow:hidden;color:white;box-sizing:border-box;}
+.bt-login-brand img {width:76px;height:76px;object-fit:contain;margin-bottom:14px;}
+.bt-company {font-size:12px;letter-spacing:.22em;color:#d6a17b;}
+.bt-rule {width:48px;height:1px;background:#c89570;margin:28px 0;}
+.bt-login-brand h1 {font-size:43px;line-height:1.16;letter-spacing:-.035em;color:#fff;font-weight:600;margin:0 0 20px;max-width:450px;}
+.bt-login-brand p {font-size:16px;line-height:1.7;color:#9dbacf;max-width:390px;position:relative;z-index:1;}
+.bt-diamond {display:block;width:85%;height:220px;margin:4px 0 0 auto;filter:drop-shadow(0 12px 24px #b8733340);}
+.bt-tagline {font-size:12px;color:#cf9b75;margin-top:18px;}
+[data-testid="stVerticalBlock"]:has(> [data-testid="stElementContainer"] .bt-login-heading) {padding:64px 42px 26px;}
+.bt-login-heading h2 {font-size:34px;margin:0 0 6px;color:#102842;}
+.bt-login-heading p {color:#79869a;font-size:16px;margin:0 0 24px;}
+[data-testid="stForm"]:has(input[aria-label="Username"]) {border:0;padding:0;}
+.bt-login-help {text-align:center;color:#64748b;font-size:13px;line-height:1.8;margin:22px 0 18px;}
+.bt-login-help strong {color:#102842;font-weight:500;}
+.bt-login-footer {text-align:center;font-size:11px;letter-spacing:.08em;color:#8793a4;margin:28px 0 0;}
+@media(max-width:760px) {
+[data-testid="stHorizontalBlock"]:has(.bt-login-brand) {flex-direction:column;}
+[data-testid="stHorizontalBlock"]:has(.bt-login-brand)>[data-testid="stColumn"] {width:100%!important;flex:1 1 100%!important;}
+.bt-login-brand {min-height:0;padding:28px;}
+.bt-login-brand img {width:50px;height:50px;}
+.bt-login-brand h1 {font-size:30px;}
+.bt-diamond,.bt-tagline {display:none;}
+[data-testid="stVerticalBlock"]:has(> [data-testid="stElementContainer"] .bt-login-heading) {padding:30px 24px;}
+}
+</style>
+""", unsafe_allow_html=True)
+        brand, form_panel = st.columns([1.08, 1], gap="small")
+        with brand:
+            st.markdown(
+                '<div class="bt-login-brand">'
+                f'<img src="{COMPANY_LOGO_URI}" alt="Bright Trading logo">'
+                '<div class="bt-company">BRIGHT TRADING INDIA LLP</div><div class="bt-rule"></div>'
+                '<h1>Your diamond operations, beautifully organised.</h1>'
+                '<p>Manage inventory, lots, and trading operations in one workspace.</p>'
+                '<svg class="bt-diamond" viewBox="0 0 460 240" aria-hidden="true">'
+                '<defs><linearGradient id="facet" x2="1" y2="1"><stop stop-color="#d8ab83" stop-opacity=".38"/><stop offset="1" stop-color="#b87333" stop-opacity=".03"/></linearGradient></defs>'
+                '<g fill="url(#facet)" stroke="#d6a17b" stroke-width="1.2" stroke-linejoin="round">'
+                '<path d="M35 70 120 20 330 20 425 70 230 220Z"/>'
+                '<path d="M35 70H425M120 20 145 70 230 220 305 70 330 20M145 70 230 20 305 70M35 70 230 220 425 70M120 20 230 20 330 20"/>'
+                '</g></svg><div class="bt-tagline">Built for clarity. Designed for your business.</div></div>',
+                unsafe_allow_html=True,
+            )
+        with form_panel:
+            with st.container():
+                st.markdown('<div class="bt-login-heading"><h2>Welcome back</h2><p>Sign in to your workspace</p></div>', unsafe_allow_html=True)
+                with st.form("bright_login", clear_on_submit=False):
+                    username = st.text_input("Username", key="login_user", placeholder="Enter your username")
+                    password = st.text_input("Password", key="login_pass", placeholder="Enter your password", type="password")
+                    submitted = st.form_submit_button("Sign in →", type="primary", use_container_width=True)
+                if submitted:
                     role = check_login(username.strip(), password.strip())
                     if role:
                         st.session_state["logged_in"] = True
-                        st.session_state["username"]   = username.strip()
-                        st.session_state["role"]        = role
+                        st.session_state["username"] = username.strip()
+                        st.session_state["role"] = role
                         _save_session_to_params(username.strip(), role)
                         st.rerun()
                     else:
-                        st.error("❌ Invalid username or password")
-
-                st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
-                with st.expander("🔑 Forgot / Reset Password"):
+                        st.error("Invalid username or password")
+                st.markdown('<div class="bt-login-help"><strong>Trouble signing in?</strong><br>Contact your administrator</div>', unsafe_allow_html=True)
+                with st.expander("Change password"):
                     fp_uname     = st.text_input("USERNAME", key="fp_uname", placeholder="Your username")
                     fp_old_pass  = st.text_input("CURRENT PASSWORD", key="fp_old_pass", placeholder="Enter current password", type="password")
                     fp_new_pass  = st.text_input("NEW PASSWORD", key="fp_new_pass", placeholder="Enter new password", type="password")
                     fp_new_pass2 = st.text_input("CONFIRM NEW PASSWORD", key="fp_new_pass2", placeholder="Re-enter new password", type="password")
-                    if st.button("🔁 Reset My Password", key="fp_reset_btn", use_container_width=True):
+                    if st.button("Update password", key="fp_reset_btn", use_container_width=True):
                         if not fp_uname.strip() or not fp_old_pass.strip() or not fp_new_pass.strip() or not fp_new_pass2.strip():
                             st.warning("Please fill in all fields.")
                         elif fp_new_pass != fp_new_pass2:
@@ -315,6 +355,8 @@ try:
                                 )
                                 conn.commit()
                                 st.success("✅ Password updated successfully. Please sign in with your new password.")
+
+                st.markdown('<div class="bt-login-footer">Bright Trading India LLP</div>', unsafe_allow_html=True)
 
     # Login stays in server-side session state; never restore authentication from a URL.
     SESSION_EXPIRY_HOURS = 24
