@@ -431,16 +431,12 @@ try:
             unsafe_allow_html=True,
         )
     with h_col2:
-        with st.container(border=True):
-            st.markdown(
-                f'<p style="font-size:13px;color:#171717;margin:0 0 2px;font-weight:500;">{escape(str(st.session_state["username"]))}</p>'
-                f'<p style="font-size:12px;color:#737373;margin:0 0 8px;">{escape(str(st.session_state["role"]))}</p>',
-                unsafe_allow_html=True,
-            )
-            if st.button("Sign Out", key="logout_btn", use_container_width=True):
+        with st.popover(f"{st.session_state['username']} ▾", use_container_width=True):
+            st.caption(f"Role: {st.session_state['role']}")
+            if st.button("Sign out", key="logout_btn", use_container_width=True):
                 st.session_state["logged_in"] = False
-                st.session_state["username"]  = ""
-                st.session_state["role"]      = ""
+                st.session_state["username"] = ""
+                st.session_state["role"] = ""
                 st.query_params.clear()
                 st.rerun()
 
@@ -453,63 +449,121 @@ try:
             st.rerun()
         st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
 
-    # ── HOME GRID (Lattice-style card launcher) ────────────────────────────────
+    # Home dashboard; module visibility follows the existing role permissions.
     if st.session_state["page"] == "home":
+        st.markdown("""
+<style>
+[data-testid="stAppViewContainer"]:has(.home-dashboard)::before {display:none;}
+.home-dashboard {display:none;}
+.hero {background:linear-gradient(115deg,#102842,#183b54);padding:28px 32px;border-radius:14px;margin-bottom:22px;}
+.hero:after {display:none;}
+.hero h1 {font-size:32px;font-weight:650;}
+.home-date {color:#d5dce4;font-size:13px;margin-top:18px;}
+.home-diamond {position:absolute;right:12%;top:24px;width:140px;height:115px;color:#c89570;opacity:.9;}
+.home-summary {display:flex;align-items:center;gap:16px;background:white;border:1px solid #dce5ed;border-radius:12px;padding:22px 18px;min-height:115px;box-sizing:border-box;}
+.home-summary-icon {display:flex;align-items:center;justify-content:center;width:46px;height:46px;flex-shrink:0;border-radius:50%;font-size:23px;color:#087f8c;background:#e7f4f5;}
+.home-summary.copper .home-summary-icon {color:#ad642d;background:#fbf0e7;}
+.home-summary-label {font-size:12px;color:#52647b;margin-bottom:6px;}
+.home-summary-value {font-size:25px;font-weight:700;color:#102842;letter-spacing:-.03em;overflow-wrap:anywhere;}
+.home-summary-note {font-size:11px;color:#8793a4;margin-top:4px;}
+.home-section {font-size:25px;font-weight:700;color:#102842;margin:24px 0 14px;}
+.module-card {min-height:90px;padding:8px 2px 0 68px;position:relative;}
+.module-icon {position:absolute;left:4px;top:8px;border-radius:50%;box-shadow:none;border:0;}
+.module-icon:before,.module-card:after {display:none;}
+.module-title {font-size:17px;}
+.module-copy {font-size:13px;line-height:1.6;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card) {border-radius:12px;box-shadow:none;}
+[data-testid="stVerticalBlock"]:has(.module-card) .stButton button {color:#087f8c;background:transparent;border:0;box-shadow:none;text-align:left;justify-content:flex-start;min-height:32px;padding-left:70px;}
+@media(max-width:760px) {.home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:22px;}}
+</style><div class="home-dashboard"></div>
+""", unsafe_allow_html=True)
         st.markdown(
-            '<div class="hero"><div class="eyebrow">YOUR OPERATIONS, CONNECTED</div>'
-            f'<h1>Welcome, {escape(str(st.session_state["username"]))}.</h1>'
-            '<p>From buying to export. Keep every stone, every lot and every next step in view.</p>'
-            '<div class="hero-footer"><span class="hero-chip">Diamond inventory ERP</span>'
-            f'<span class="hero-chip">{datetime.now().strftime("%d %b %Y")} · IST</span>'
-            f'<span class="hero-chip">{len(_nav)} available modules</span></div></div>',
+            '<div class="hero">'
+            f'<h1>Welcome back, {escape(str(st.session_state["username"]))}</h1>'
+            '<p>Your diamond operations at a glance.</p>'
+            f'<div class="home-date">{datetime.now().strftime("%d %B %Y")}</div>'
+            '<svg class="home-diamond" viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">'
+            '<path d="M12 35 40 10H120L148 35 80 110ZM12 35H148M40 10 52 35 80 110 108 35 120 10M52 35 80 10 108 35"/></svg></div>',
             unsafe_allow_html=True,
         )
-
-        _search = st.text_input(
-            "Search for Actions",
-            key="home_search",
-            placeholder="Search your workspace — stock, lots, exports…",
-            label_visibility="collapsed",
-        )
-
-        st.markdown('<div style="height:24px;"></div>', unsafe_allow_html=True)
-
-        _filtered = [
-            (key, icon, label) for key, icon, label in _nav
-            if _search.strip().lower() in label.lower()
-        ] if _search.strip() else _nav
-
-        st.markdown(_section_header("◇", "Your workspace"), unsafe_allow_html=True)
-        _module_details = {
-            "upload": {"tint":"#eef8f3", "desc":"Import buying files and review incoming stones.", "icon":"⤴", "icon_bg":"#e4f5ea", "icon_color":"#1e7a46"},
-            "stock": {"tint":"#eef4ff", "desc":"Explore inventory, filter stones and review values.", "icon":"⬢", "icon_bg":"#e5eeff", "icon_color":"#315ea8"},
-            "lot": {"tint":"#f4efff", "desc":"Create lots and follow your processing workflow.", "icon":"✦", "icon_bg":"#ece3ff", "icon_color":"#6d43c6"},
-            "return": {"tint":"#fff2ef", "desc":"Manage returned stones and review return records.", "icon":"↩", "icon_bg":"#ffe2db", "icon_color":"#d6523c"},
-            "export": {"tint":"#eef8ff", "desc":"Prepare shipments and manage exported stones.", "icon":"➤", "icon_bg":"#e1f1ff", "icon_color":"#1f7db5"},
-            "admin": {"tint":"#fff8e9", "desc":"Manage users, access and shape mappings.", "icon":"✧", "icon_bg":"#fff0c8", "icon_color":"#a06a00"},
+        if not is_video:
+            # Same inventory scope and valuation as the former Buying Stock cards.
+            cursor.execute(
+                "SELECT COUNT(*), COALESCE(SUM(cts),0), COALESCE(SUM(amount),0), "
+                "COALESCE(SUM(amount*COALESCE(bank_rate,0)),0), "
+                "COUNT(*) FILTER (WHERE stock_status='LOT'), "
+                "COUNT(*) FILTER (WHERE stock_status='LIVE') "
+                "FROM buying_stock WHERE stock_status IN ('LIVE','LOT') "
+                "AND (exported_at IS NULL OR exported_at='')"
+            )
+            stones, carats, usd, inr, lot_stones, pending = cursor.fetchone()
+            summaries = [
+                ("Total stones", f"{stones:,}", "In buying stock", "◇"),
+                ("Total carats", f"{float(carats):,.2f} ct", "Total weight", "◈"),
+                ("Total value · USD", f"${float(usd):,.0f}", "Buying value", "$"),
+                ("Total value · INR", f"₹{float(inr):,.0f}", "Converted value", "₹"),
+                ("Lot generated", f"{lot_stones:,}", "Stones assigned to lots", "▱"),
+                ("Not processed", f"{pending:,}", "Stones pending lot", "◷"),
+            ]
+            for start in range(0, len(summaries), 3):
+                for index, (column, item) in enumerate(zip(st.columns(3), summaries[start:start+3])):
+                    label, value, note, icon = item
+                    column.markdown(
+                        f'<div class="home-summary {"copper" if (start+index)%2 == 0 else ""}">'
+                        f'<span class="home-summary-icon">{icon}</span><div>'
+                        f'<div class="home-summary-label">{label}</div>'
+                        f'<div class="home-summary-value">{value}</div>'
+                        f'<div class="home-summary-note">{note}</div></div></div>',
+                        unsafe_allow_html=True,
+                    )
+        st.markdown('<div class="home-section">Your workspace</div>', unsafe_allow_html=True)
+        details = {
+            "upload": ("Buying Upload", "Import buying files and review incoming stones.", "↥"),
+            "stock": ("Buying Stock", "Search inventory and review stone details.", "⌕"),
+            "lot": ("Lots", "Create lots and track processing.", "◇"),
+            "return": ("Returns", "Manage returned stones and records.", "↺"),
+            "export": ("Exports", "Prepare shipments and review exports.", "➜"),
+            "admin": ("Admin", "Manage users and shape mappings.", "♙"),
         }
-        _cards_per_row = 4
-        for _row_start in range(0, len(_filtered), _cards_per_row):
-            _row_items = _filtered[_row_start:_row_start + _cards_per_row]
-            _cols = st.columns(_cards_per_row)
-            for _i, _col in enumerate(_cols):
-                if _i < len(_row_items):
-                    _key, _icon, _label = _row_items[_i]
-                    _meta = _module_details[_key]
-                    with _col:
-                        with st.container(border=True):
-                            st.markdown(
-                                f'<div class="module-card" style="--tint:{_meta["tint"]}; --icon-bg:{_meta["icon_bg"]}; --icon-color:{_meta["icon_color"]};">'
-                                f'<div class="module-icon"><span class="glyph">{_meta["icon"]}</span></div>'
-                                f'<p class="module-title">{_label}</p>'
-                                f'<p class="module-copy">{_meta["desc"]}</p></div>',
-                                unsafe_allow_html=True,
-                            )
-                            if st.button(f"Open {_label} →", key=f"nav_card_{_key}", use_container_width=True):
-                                st.session_state["page"] = _key
-                                st.rerun()
-        if not _filtered:
-            st.info("No matching actions found.")
+        for start in range(0, len(_nav), 3):
+            for column, (key, _, _) in zip(st.columns(3), _nav[start:start+3]):
+                title, description, icon = details[key]
+                copper = key in ("upload", "lot", "export")
+                bg, color = ("#fbf0e7", "#ad642d") if copper else ("#e7f4f5", "#087f8c")
+                with column:
+                    with st.container(border=True):
+                        st.markdown(
+                            f'<div class="module-card" style="--icon-bg:{bg};--icon-color:{color};">'
+                            f'<div class="module-icon"><span class="glyph">{icon}</span></div>'
+                            f'<p class="module-title">{title}</p><p class="module-copy">{description}</p></div>',
+                            unsafe_allow_html=True,
+                        )
+                        if st.button("Open →", key=f"nav_card_{key}", use_container_width=True):
+                            st.session_state["page"] = key
+                            st.rerun()
+        if not is_video:
+            st.markdown('<div class="home-section">Recent activity</div>', unsafe_allow_html=True)
+            # Derived from current records, rather than a separate historical audit log.
+            activity = read_frame(
+                "SELECT activity, details, event_time, status FROM ("
+                "SELECT 'Buying upload' AS activity, CAST(COUNT(*) AS TEXT) || ' stones' AS details, "
+                "upload_time AS event_time, 'Recorded' AS status FROM buying_stock "
+                "WHERE COALESCE(upload_time,'')<>'' GROUP BY upload_time "
+                "UNION ALL SELECT 'Lot created', COALESCE(lot_no,'') || ' · ' || CAST(COUNT(*) AS TEXT) || ' stones', "
+                "lot_date, 'Recorded' FROM buying_stock WHERE COALESCE(lot_date,'')<>'' "
+                "AND COALESCE(lot_no,'')<>'' GROUP BY lot_no,lot_date "
+                "UNION ALL SELECT 'Return recorded', CAST(COUNT(*) AS TEXT) || ' stones', "
+                "return_date, 'Recorded' FROM buying_stock WHERE COALESCE(return_date,'')<>'' GROUP BY return_date "
+                "UNION ALL SELECT 'Export recorded', CAST(COUNT(*) AS TEXT) || ' stones', "
+                "exported_at, 'Recorded' FROM buying_stock WHERE COALESCE(exported_at,'')<>'' GROUP BY exported_at"
+                ") recent ORDER BY event_time DESC LIMIT 6", conn,
+            )
+            if activity.empty:
+                st.info("No recent activity yet. Upload a buying file to get started.")
+            else:
+                activity.columns = ["Activity", "Details", "Time · IST", "Status"]
+                st.dataframe(activity, hide_index=True, use_container_width=True)
+                st.caption("Recent activity is based on current stock records.")
         st.stop()
 
     # ── ROUTING FLAGS (replace the old st.tabs() tab objects) ─────────────────
@@ -674,9 +728,6 @@ try:
                            "COALESCE(SUM(amount*COALESCE(bank_rate,0)),0) FROM buying_stock WHERE " + where_sql, params)
             total_stones, total_cts, total_amt, total_inr = cursor.fetchone()
             total_cts, total_amt, total_inr = [round(float(v),2) for v in (total_cts,total_amt,total_inr)]
-            cursor.execute("SELECT COUNT(*) FILTER (WHERE stock_status='LIVE'), "
-                           "COUNT(*) FILTER (WHERE stock_status='LOT') FROM buying_stock WHERE " + base_where)
-            live_count_bs, lot_count_bs = cursor.fetchone()
             page_size = 200
             page_count = max(1, (total_stones + page_size - 1)//page_size)
             filter_signature = tuple(params) + (where_sql,)
@@ -691,58 +742,6 @@ try:
             st.caption(f"Page {page} of {page_count} · {total_stones:,} matching stones · 200 per page. Totals and Excel include all matching stones. Column sorting applies to the current page.")
 
             st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
-            km1, km2, km3, km4, km5, km6 = st.columns(6)
-            km1.markdown(
-                f'<div class="kpi-card" style="--accent:#171717;">'
-                f'<span class="kpi-icon">💎</span>'
-                f'<p class="kpi-label">TOTAL STONES</p>'
-                f'<p class="kpi-value">{total_stones:,}</p>'
-                f'<p class="kpi-sub">in buying stock</p>'
-                f'</div>', unsafe_allow_html=True,
-            )
-            km2.markdown(
-                f'<div class="kpi-card" style="--accent:#3b82f6;">'
-                f'<span class="kpi-icon">📦</span>'
-                f'<p class="kpi-label">TOTAL CARATS</p>'
-                f'<p class="kpi-value">{total_cts:,}</p>'
-                f'<p class="kpi-sub">total weight</p>'
-                f'</div>', unsafe_allow_html=True,
-            )
-            km3.markdown(
-                f'<div class="kpi-card" style="--accent:#22c55e;">'
-                f'<span class="kpi-icon">💵</span>'
-                f'<p class="kpi-label">TOTAL AMT USD</p>'
-                f'<p class="kpi-value">${total_amt:,.0f}</p>'
-                f'<p class="kpi-sub">buying value</p>'
-                f'</div>', unsafe_allow_html=True,
-            )
-            km4.markdown(
-                f'<div class="kpi-card" style="--accent:#a855f7;">'
-                f'<span class="kpi-icon">🇮🇳</span>'
-                f'<p class="kpi-label">TOTAL AMT INR</p>'
-                f'<p class="kpi-value">₹{total_inr:,.0f}</p>'
-                f'<p class="kpi-sub">converted value</p>'
-                f'</div>', unsafe_allow_html=True,
-            )
-            km5.markdown(
-                f'<div class="kpi-card" style="--accent:#8b5cf6;">'
-                f'<span class="kpi-icon">🏷️</span>'
-                f'<p class="kpi-label">LOT GENERATED</p>'
-                f'<p class="kpi-value">{lot_count_bs:,}</p>'
-                f'<p class="kpi-sub">Stones sent for lot</p>'
-                f'</div>', unsafe_allow_html=True,
-            )
-            km6.markdown(
-                f'<div class="kpi-card" style="--accent:#f59e0b;">'
-                f'<span class="kpi-icon">⏳</span>'
-                f'<p class="kpi-label">NOT PROCESSED</p>'
-                f'<p class="kpi-value">{live_count_bs:,}</p>'
-                f'<p class="kpi-sub">Stones pending lot</p>'
-                f'</div>', unsafe_allow_html=True,
-            )
-
-            st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
-
             def format_stock(source):
                 # Computed INR columns — use DB stored value if available, else calculate
                 display_df = source.copy()
