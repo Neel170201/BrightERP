@@ -957,6 +957,15 @@ try:
 .st-key-lots_page h3 {font-size:22px!important;color:#102842!important;}
 .st-key-lots_page [data-testid="stDataFrame"],.st-key-lots_page [data-testid="stDataEditor"] {background:#ffffff!important;border:1px solid #dce5ed!important;border-radius:10px!important;}
 @media(max-width:760px) {.st-key-lots_upload_panel,.st-key-lots_input_panel,[class*="st-key-lots_today_"] {padding:14px!important;}}
+
+.st-key-master_txt_panel,.st-key-master_excel_panel {min-height:310px!important;padding:22px!important;box-sizing:border-box;}
+.st-key-master_txt_panel [data-testid="stVerticalBlock"],.st-key-master_excel_panel [data-testid="stVerticalBlock"] {gap:10px;}
+.st-key-master_txt_panel h3,.st-key-master_excel_panel h3 {margin:0!important;padding:0!important;font-size:20px!important;}
+.st-key-master_txt_panel .stButton button,.st-key-master_excel_panel .stButton button {min-width:160px;min-height:40px;box-shadow:none!important;border-radius:8px!important;margin-top:6px;}
+.master-summary {padding:14px 18px!important;}
+.master-export-note {height:137px!important;box-sizing:border-box;margin:5px 0 0!important;display:block;background:#f5f9fa!important;border:1px solid #e0ecee;line-height:1.7;}
+.master-file-icon {display:block;width:44px;margin-bottom:8px;border:1px solid #a5cdd0;border-radius:5px;padding:3px 6px;font-size:10px;font-weight:700;color:#087f8c;background:#fff;}
+@media(max-width:760px) {.st-key-master_txt_panel,.st-key-master_excel_panel {min-height:0!important;}}
 </style>
 <div class="lots-title"><h2>Lot Generation</h2><p>Create lots and review generated records.</p></div>
 
@@ -1429,10 +1438,12 @@ try:
                 for column, (label, value, note) in zip(st.columns(len(master_metrics)), master_metrics):
                     column.markdown(f'<div class="master-summary"><div class="master-label">{label}</div><div class="master-value">{value}</div><div class="master-note">{note}</div></div>', unsafe_allow_html=True)
 
+                st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
+
                 if not master_count:
                     st.info("ℹ️ No master lots generated before today.")
                 else:
-                    txt_panel, excel_panel = st.columns([1.65, 1])
+                    txt_panel, excel_panel = st.columns(2, gap="medium")
                     with txt_panel:
                         with st.container(key="master_txt_panel"):
                             st.subheader("Certificate TXT")
@@ -1440,14 +1451,14 @@ try:
                             pasted_certificates = st.text_area(
                                 "Certificate numbers for TXT",
                                 key="master_paste_certificates",
-                                placeholder="LG841638639\\nLG841638699",
+                                placeholder="LG841638639\nLG841638699",
                                 height=110,
                             )
                             selection = list(dict.fromkeys(
                                 normalize_cert(x.strip()) for x in pasted_certificates.splitlines() if x.strip()
                             ))
 
-                            if st.button("📥 Generate TXT", key="master_generate_txt_btn", type="primary", use_container_width=True):
+                            if st.button("Generate TXT", key="master_generate_txt_btn", type="primary", use_container_width=False):
                                 st.session_state.pop("master_txt_content", None)
                                 st.session_state.pop("master_txt_count", None)
                                 if not selection:
@@ -1503,8 +1514,8 @@ try:
                         with st.container(key="master_excel_panel"):
                             st.subheader("Full Master Excel")
                             st.caption("Download all master lot records in the existing Excel format.")
-                            st.markdown(f'<div class="master-export-note"><strong>{master_count:,} stones</strong><br>Includes all master records generated before today.</div>', unsafe_allow_html=True)
-                            if st.button("📊 Prepare Full Master Excel", key="master_prepare_excel_btn", use_container_width=True):
+                            st.markdown(f'<div class="master-export-note"><span class="master-file-icon">XLSX</span><strong>{master_count:,} master records</strong><br>Ready to prepare your full Excel download.</div>', unsafe_allow_html=True)
+                            if st.button("Prepare Excel", key="master_prepare_excel_btn", type="primary", use_container_width=False):
                                 # Full SELECT and Excel conversion run ONLY when this button is clicked.
                                 st.session_state.pop("master_excel_bytes", None)
                                 with st.spinner("Fetching master lots from Neon and preparing Excel..."):
