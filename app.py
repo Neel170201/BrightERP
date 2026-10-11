@@ -918,7 +918,7 @@ try:
     if tab3:
         with st.container(key="lots_page"):
             st.markdown("""
-    <style>
+<style>
 .st-key-lots_section_tabs {border-bottom:1px solid #dce5ed!important;margin-bottom:4px;}
 .st-key-lots_section_tabs .stButton button {background:transparent!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;box-shadow:none!important;color:#64748b!important;min-height:44px!important;padding:8px 12px!important;transform:none!important;}
 .st-key-lots_section_tabs .stButton button p {font-size:14px!important;font-weight:600!important;color:inherit!important;white-space:nowrap;}
@@ -933,24 +933,25 @@ try:
 .lots-count-note {background:#eef7f8;border:1px solid #d9ecee;border-radius:8px;padding:12px 14px;font-size:13px;color:#52647b;}
 .lots-count-note strong {font-size:19px;color:#087f8c;margin-right:6px;}
 
-    [data-testid="stAppViewContainer"]:has(.lots-title)::before {display:none;}
-    .st-key-lots_page .lots-title h2 {font-size:28px!important;line-height:1.3!important;font-weight:700;color:#102842;margin:0 0 6px;padding:0;}
-    .lots-title p {font-size:14px!important;color:#748398;margin:0 0 18px;}
-    .st-key-lots_page [data-testid="stRadio"]>label {display:none;}
-    .st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] {gap:12px;border-bottom:1px solid #dce5ed;padding-bottom:0;}
-    .st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label {padding:10px 14px;margin:0;border-bottom:3px solid transparent;}
-    .st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {border-bottom-color:#087f8c;background:#eaf6f6;}
-    .st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label>div:first-child {display:none;}
-    .st-key-lots_upload_panel,.st-key-lots_input_panel,[class*="st-key-lots_today_"] {background:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:20px!important;}
-    .st-key-lots_page [data-testid="stFileUploaderDropzone"] {background:#eff9fa!important;border:1px dashed #44a6b0!important;border-radius:10px!important;padding:28px!important;}
-    .st-key-lots_page [data-baseweb="input"],.st-key-lots_page [data-baseweb="input"] input,.st-key-lots_page [data-baseweb="select"]>div,.st-key-lots_page textarea {background:#ffffff!important;color:#18324b!important;}
-    .st-key-lots_page [data-baseweb="input"],.st-key-lots_page textarea {border:1px solid #dce5ed!important;border-radius:8px!important;}
-    .st-key-lots_page h3 {font-size:22px!important;color:#102842!important;}
-    .st-key-lots_page [data-testid="stDataFrame"],.st-key-lots_page [data-testid="stDataEditor"] {background:#ffffff!important;border:1px solid #dce5ed!important;border-radius:10px!important;}
-    @media(max-width:760px) {.st-key-lots_upload_panel,.st-key-lots_input_panel,[class*="st-key-lots_today_"] {padding:14px!important;}}
-    </style>
-    <div class="lots-title"><h2>Lot Generation</h2><p>Create lots and review generated records.</p></div>
-    """, unsafe_allow_html=True)
+[data-testid="stAppViewContainer"]:has(.st-key-lots_page)::before {display:none!important;}
+.st-key-lots_page .lots-title h2 {font-size:28px!important;line-height:1.3!important;font-weight:700;color:#102842;margin:0 0 6px;padding:0;}
+.lots-title p {font-size:14px!important;color:#748398;margin:0 0 18px;}
+.st-key-lots_page [data-testid="stRadio"]>label {display:none;}
+.st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] {gap:12px;border-bottom:1px solid #dce5ed;padding-bottom:0;}
+.st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label {padding:10px 14px;margin:0;border-bottom:3px solid transparent;}
+.st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {border-bottom-color:#087f8c;background:#eaf6f6;}
+.st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label>div:first-child {display:none;}
+.st-key-lots_upload_panel,.st-key-lots_input_panel,[class*="st-key-lots_today_"] {background:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:20px!important;}
+.st-key-lots_page [data-testid="stFileUploaderDropzone"] {background:#eff9fa!important;border:1px dashed #44a6b0!important;border-radius:10px!important;padding:28px!important;}
+.st-key-lots_page [data-baseweb="input"],.st-key-lots_page [data-baseweb="input"] input,.st-key-lots_page [data-baseweb="select"]>div,.st-key-lots_page textarea {background:#ffffff!important;color:#18324b!important;}
+.st-key-lots_page [data-baseweb="input"],.st-key-lots_page textarea {border:1px solid #dce5ed!important;border-radius:8px!important;}
+.st-key-lots_page h3 {font-size:22px!important;color:#102842!important;}
+.st-key-lots_page [data-testid="stDataFrame"],.st-key-lots_page [data-testid="stDataEditor"] {background:#ffffff!important;border:1px solid #dce5ed!important;border-radius:10px!important;}
+@media(max-width:760px) {.st-key-lots_upload_panel,.st-key-lots_input_panel,[class*="st-key-lots_today_"] {padding:14px!important;}}
+</style>
+<div class="lots-title"><h2>Lot Generation</h2><p>Create lots and review generated records.</p></div>
+
+""", unsafe_allow_html=True)
 
             lot_options = [("📂 Excel Upload", "Excel Upload"), ("📋 Input IGI No", "Input IGI No"), ("📊 Master Lot Data", "Master Lot Data")]
             if st.session_state.get("lot_section") not in [value for value, _ in lot_options]:
