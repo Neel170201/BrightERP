@@ -916,605 +916,630 @@ try:
         # TAB 3 — LOT GENERATED
         # ══════════════════════════════════════════════════════════════════════════
     if tab3:
-        st.markdown(_section_header("🏷", "Lot Generation"), unsafe_allow_html=True)
+        with st.container(key="lots_page"):
+            st.markdown("""
+    <style>
+    [data-testid="stAppViewContainer"]:has(.lots-title)::before {display:none;}
+    .st-key-lots_page .lots-title h2 {font-size:28px!important;line-height:1.3!important;font-weight:700;color:#102842;margin:0 0 6px;padding:0;}
+    .lots-title p {font-size:14px!important;color:#748398;margin:0 0 18px;}
+    .st-key-lots_page [data-testid="stRadio"]>label {display:none;}
+    .st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] {gap:12px;border-bottom:1px solid #dce5ed;padding-bottom:0;}
+    .st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label {padding:10px 14px;margin:0;border-bottom:3px solid transparent;}
+    .st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {border-bottom-color:#087f8c;background:#eaf6f6;}
+    .st-key-lots_page [data-testid="stRadio"] [role="radiogroup"] label>div:first-child {display:none;}
+    .st-key-lots_upload_panel,.st-key-lots_input_panel,[class*="st-key-lots_today_"] {background:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:20px!important;}
+    .st-key-lots_page [data-testid="stFileUploaderDropzone"] {background:#eff9fa!important;border:1px dashed #44a6b0!important;border-radius:10px!important;padding:28px!important;}
+    .st-key-lots_page [data-baseweb="input"],.st-key-lots_page [data-baseweb="input"] input,.st-key-lots_page [data-baseweb="select"]>div,.st-key-lots_page textarea {background:#ffffff!important;color:#18324b!important;}
+    .st-key-lots_page [data-baseweb="input"],.st-key-lots_page textarea {border:1px solid #dce5ed!important;border-radius:8px!important;}
+    .st-key-lots_page h3 {font-size:22px!important;color:#102842!important;}
+    .st-key-lots_page [data-testid="stDataFrame"],.st-key-lots_page [data-testid="stDataEditor"] {background:#ffffff!important;border:1px solid #dce5ed!important;border-radius:10px!important;}
+    @media(max-width:760px) {.st-key-lots_upload_panel,.st-key-lots_input_panel,[class*="st-key-lots_today_"] {padding:14px!important;}}
+    </style>
+    <div class="lots-title"><h2>Lot Generation</h2><p>Create lots and review generated records.</p></div>
+    """, unsafe_allow_html=True)
 
-        lot_section = st.radio("Section", ["📂 Excel Upload", "📋 Input IGI No", "📊 Master Lot Data"], horizontal=True, key="lot_section")
+            lot_section = st.radio("Section", ["📂 Excel Upload", "📋 Input IGI No", "📊 Master Lot Data"], horizontal=True, key="lot_section", format_func=lambda value: value.split(" ", 1)[1])
 
-        # ── shared helper ────────────────────────────────────────────────────────
-        def normalize_cert(cert: str) -> str:
-            """If user pastes a 9-digit number without LG prefix, auto-add LG."""
-            c = cert.strip()
-            if c.isdigit() and len(c) == 9:
-                return "LG" + c
-            return c
+            # ── shared helper ────────────────────────────────────────────────────────
+            def normalize_cert(cert: str) -> str:
+                """If user pastes a 9-digit number without LG prefix, auto-add LG."""
+                c = cert.strip()
+                if c.isdigit() and len(c) == 9:
+                    return "LG" + c
+                return c
 
-        def run_lot_generation(report_list, memo_dict, btn_key_suffix):
-            cursor.execute("SELECT pg_advisory_xact_lock(728190402)")
-            cursor.execute(
-                "SELECT lot_no FROM buying_stock WHERE lot_no IS NOT NULL "
-                "ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC LIMIT 1"
-            )
-            last = cursor.fetchone()
-            try:
-                last_number = int(last[0]) if last else 917967
-            except Exception:
-                last_number = 917967
-
-            generated = skipped = already = 0
-            results = []
-            for raw_report in report_list:
-                report_no = normalize_cert(raw_report)
-
-                # First check: does this certificate exist in buying stock at all?
+            def run_lot_generation(report_list, memo_dict, btn_key_suffix):
+                cursor.execute("SELECT pg_advisory_xact_lock(728190402)")
                 cursor.execute(
-                    "SELECT report_no, lot_no, stock_status FROM buying_stock WHERE report_no=?",
-                    (report_no,),
+                    "SELECT lot_no FROM buying_stock WHERE lot_no IS NOT NULL "
+                    "ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC LIMIT 1"
                 )
-                data = cursor.fetchone()
+                last = cursor.fetchone()
+                try:
+                    last_number = int(last[0]) if last else 917967
+                except Exception:
+                    last_number = 917967
 
-                if not data:
-                    # Certificate not in buying file at all
-                    skipped += 1
-                    results.append({"REPORT NO": report_no, "STATUS": "❌ Buying not updated — Certificate not found", "LOT NO": ""})
-                elif data[1]:
-                    # Certificate exists but lot already generated
-                    already += 1
-                    results.append({"REPORT NO": report_no, "STATUS": "🚫 Lot already generated", "LOT NO": data[1]})
-                elif data[2] != "LIVE":
-                    # Certificate exists but not in LIVE status (RETURN etc.)
-                    skipped += 1
-                    results.append({"REPORT NO": report_no, "STATUS": f"❌ Not in LIVE status ({data[2]})", "LOT NO": ""})
-                else:
-                    # All good — generate lot
-                    last_number += 1
-                    lot_no   = str(last_number)
-                    lot_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    memo     = memo_dict.get(report_no, memo_dict.get(raw_report, ""))
+                generated = skipped = already = 0
+                results = []
+                for raw_report in report_list:
+                    report_no = normalize_cert(raw_report)
+
+                    # First check: does this certificate exist in buying stock at all?
                     cursor.execute(
-                        "UPDATE buying_stock SET lot_no=?, lot_date=?, stock_status='LOT', memo_no=? WHERE report_no=?",
-                        (lot_no, lot_date, memo, report_no),
+                        "SELECT report_no, lot_no, stock_status FROM buying_stock WHERE report_no=?",
+                        (report_no,),
                     )
-                    generated += 1
-                    results.append({"REPORT NO": report_no, "STATUS": "✅ Generated", "LOT NO": lot_no, "MEMO NO": memo})
+                    data = cursor.fetchone()
 
-            conn.commit()
-
-            # Store results in session_state so they survive rerun
-            st.session_state["lot_gen_results"]   = results
-            st.session_state["lot_gen_generated"] = generated
-            st.session_state["lot_gen_already"]   = already
-            st.session_state["lot_gen_skipped"]   = skipped
-            st.session_state["lot_gen_tab"]       = btn_key_suffix
-            st.rerun()
-
-        def _show_lot_gen_results():
-            """Display lot generation results stored in session_state (survives rerun)."""
-            if "lot_gen_results" not in st.session_state:
-                return
-            generated = st.session_state["lot_gen_generated"]
-            already   = st.session_state["lot_gen_already"]
-            skipped   = st.session_state["lot_gen_skipped"]
-            results   = st.session_state["lot_gen_results"]
-
-            if generated:
-                st.success(f"✅ {generated} lot(s) generated successfully")
-            if already:
-                st.markdown(
-                    f'<div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;'
-                    f'border-radius:8px;padding:14px 18px;margin:8px 0;">'
-                    f'<p style="color:#991b1b;font-size:14px;font-weight:800;margin:0 0 4px;">'
-                    f'🚫 Lot Already Generated — {already} Certificate(s)</p>'
-                    f'<p style="color:#b91c1c;font-size:12px;margin:0;">'
-                    f'A lot has already been generated for these certificates. They have been skipped.</p>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-            if skipped:
-                st.markdown(
-                    f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
-                    f'border-radius:8px;padding:14px 18px;margin:8px 0;">'
-                    f'<p style="color:#92400e;font-size:14px;font-weight:800;margin:0 0 4px;">'
-                    f'⚠️ Buying Not Updated — {skipped} Certificate(s)</p>'
-                    f'<p style="color:#92400e;font-size:12px;margin:0;">'
-                    f'These certificates were not found in the buying file. Please upload the buying file first.</p>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-            if results:
-                st.dataframe(pd.DataFrame(results), use_container_width=True)
-
-        def _render_today_lots(editor_key, btn_key, dl_key):
-            """Render today's generated lots table with checkboxes for TXT export."""
-            lot_today_df = read_frame(
-                """
-                SELECT * FROM buying_stock
-                WHERE lot_no IS NOT NULL
-                  AND stock_status != 'RETURN'
-                  AND LEFT(lot_date, 10) = TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD')
-                ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC
-                """,
-                conn,
-            )
-
-            st.subheader(f"🏷 Today's Generated Lots — {datetime.now().strftime('%d-%m-%Y')}")
-
-            # ── Report No / Lot No filters ────────────────────────────────────
-            flt1, flt2 = st.columns(2)
-            report_flt_val = flt1.text_input("REPORT NO", key=f"{editor_key}_report_filter", placeholder="LG123…")
-            lot_flt_val    = flt2.text_input("LOT NO",    key=f"{editor_key}_lot_filter",    placeholder="918123…")
-
-            if report_flt_val:
-                lot_today_df = lot_today_df[
-                    lot_today_df["report_no"].astype(str).str.contains(report_flt_val, case=False, na=False)
-                ]
-            if lot_flt_val:
-                lot_today_df = lot_today_df[
-                    lot_today_df["lot_no"].astype(str).str.contains(lot_flt_val, case=False, na=False)
-                ]
-
-            if lot_today_df.empty:
-                st.info(f"ℹ️ No lots generated today ({datetime.now().strftime('%d-%m-%Y')}) matching your filters.")
-                return
-
-            pc  = pd.to_numeric(lot_today_df["per_carat"], errors="coerce").fillna(0)
-            amt = pd.to_numeric(lot_today_df["amount"],    errors="coerce").fillna(0)
-            br  = pd.to_numeric(lot_today_df["bank_rate"], errors="coerce").fillna(0)
-
-            if is_video:
-                pc  = pc  * 0
-                amt = amt * 0
-                br  = br  * 0
-
-            tbl = pd.DataFrame({
-                "SELECT":             False,
-                "CERTIFICATE":        lot_today_df["report_no"].values,
-                "LOT NUMBER":         lot_today_df["lot_no"].values,
-                "MEMO NO":            lot_today_df["memo_no"].values,
-                "BUYER NAME":         lot_today_df["buyer_name"].values,
-                "BUY DATE":           pd.to_datetime(lot_today_df["buying_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
-                "PARTY NAME":         lot_today_df["party_name"].values,
-                "LAB":                lot_today_df["lab"].values,
-                "WT.":                lot_today_df["cts"].values,
-                "SHAPE":              lot_today_df["shape"].values,
-                "ORG.COST":           pc.values,
-                "BANK RATE":          br.values,
-                "TOTAL BUYING PRICE": amt.values,
-                "INR P/C":            round(pc * br, 2).values,
-                "INR TOTAL":          round(amt * br, 2).values,
-                "REMARK":             lot_today_df["remark"].values,
-            }).fillna("")
-
-            st.markdown(
-                '<p style="font-size:12px;color:#737373;margin-bottom:6px;">'
-                '☑ Tick rows → Generate TXT</p>',
-                unsafe_allow_html=True,
-            )
-
-            # ── SELECT ALL toggle ──────────────────────────────────────────────
-            select_all_key = f"select_all_{editor_key}"
-            select_all = st.checkbox("☑ Select All / Deselect All", key=select_all_key)
-            tbl["SELECT"] = select_all
-
-            edited = st.data_editor(
-                tbl,
-                column_config={
-                    "SELECT": st.column_config.CheckboxColumn("✔", default=False, width="small"),
-                },
-                disabled=[c for c in tbl.columns if c != "SELECT"],
-                use_container_width=True,
-                hide_index=True,
-                key=editor_key,
-                height=520,
-            )
-
-            selected = edited[edited["SELECT"] == True]["CERTIFICATE"].tolist()
-
-            # ── Excel download for today's lots (ALL rows included, with a
-            #     SELECTED column reflecting each row's tick state: TRUE/FALSE) ──
-            import io as _io
-            _today_excel_buf = _io.BytesIO()
-            _today_excel_export = edited.copy()
-            _today_excel_export["SELECT"] = _today_excel_export["SELECT"].astype(bool)
-            _today_excel_export = _today_excel_export.rename(columns={"SELECT": "SELECTED"})
-            # Move SELECTED to the front so it's easy to spot
-            _today_excel_export = _today_excel_export[
-                ["SELECTED"] + [c for c in _today_excel_export.columns if c != "SELECTED"]
-            ]
-            _today_excel_export.to_excel(_today_excel_buf, index=False, engine="openpyxl")
-            _today_excel_buf.seek(0)
-
-            bc1, bc2, bc3 = st.columns([3, 1, 1])
-            bc1.markdown(
-                f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
-                f'border-radius:8px;padding:10px 16px;margin-top:6px;display:inline-block;">'
-                f'<span style="font-size:12px;color:#737373;">SELECTED</span>'
-                f'&nbsp;&nbsp;<span style="font-size:20px;font-weight:800;color:#171717;">{len(selected)}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            bc3.download_button(
-                label="⬇ Excel",
-                data=_today_excel_buf,
-                file_name=f"Today_Lots_{datetime.now().strftime('%d%m%Y')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"today_excel_dl_{dl_key}",
-                use_container_width=True,
-            )
-            if bc2.button("📥 Generate TXT", key=btn_key):
-                if not selected:
-                    st.warning("⚠️ Please select at least one row first.")
-                else:
-                    rows = lot_today_df[lot_today_df["report_no"].astype(str).isin(selected)].copy()
-                    rows["per_carat"] = pd.to_numeric(rows["per_carat"], errors="coerce").fillna(0)
-                    rows["bank_rate"] = pd.to_numeric(rows["bank_rate"], errors="coerce").fillna(0)
-                    if is_video:
-                        exp = pd.DataFrame({
-                            "Lot#":         rows["lot_no"],
-                            "Certificate#": rows["report_no"],
-                            "Weight":       rows["cts"],
-                            "Cost/Cts":     0,
-                            "Lab":          rows["lab"],
-                        }).fillna("")
+                    if not data:
+                        # Certificate not in buying file at all
+                        skipped += 1
+                        results.append({"REPORT NO": report_no, "STATUS": "❌ Buying not updated — Certificate not found", "LOT NO": ""})
+                    elif data[1]:
+                        # Certificate exists but lot already generated
+                        already += 1
+                        results.append({"REPORT NO": report_no, "STATUS": "🚫 Lot already generated", "LOT NO": data[1]})
+                    elif data[2] != "LIVE":
+                        # Certificate exists but not in LIVE status (RETURN etc.)
+                        skipped += 1
+                        results.append({"REPORT NO": report_no, "STATUS": f"❌ Not in LIVE status ({data[2]})", "LOT NO": ""})
                     else:
-                        exp = pd.DataFrame({
-                            "Certificate#": rows["report_no"],
-                            "Lot#":         rows["lot_no"],
-                            "Lab":          rows["lab"],
-                            "Weight":       rows["cts"],
-                            "Cost/Cts":     round(rows["per_carat"] * rows["bank_rate"], 2),
-                        }).fillna("")
-                    txt_content = exp.to_csv(sep="\t", index=False)
-                    st.download_button(
-                        label="⬇ Download TXT File",
-                        data=txt_content,
-                        file_name=f"Lot_File_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
-                        mime="text/plain",
-                        key=dl_key,
+                        # All good — generate lot
+                        last_number += 1
+                        lot_no   = str(last_number)
+                        lot_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        memo     = memo_dict.get(report_no, memo_dict.get(raw_report, ""))
+                        cursor.execute(
+                            "UPDATE buying_stock SET lot_no=?, lot_date=?, stock_status='LOT', memo_no=? WHERE report_no=?",
+                            (lot_no, lot_date, memo, report_no),
+                        )
+                        generated += 1
+                        results.append({"REPORT NO": report_no, "STATUS": "✅ Generated", "LOT NO": lot_no, "MEMO NO": memo})
+
+                conn.commit()
+
+                # Store results in session_state so they survive rerun
+                st.session_state["lot_gen_results"]   = results
+                st.session_state["lot_gen_generated"] = generated
+                st.session_state["lot_gen_already"]   = already
+                st.session_state["lot_gen_skipped"]   = skipped
+                st.session_state["lot_gen_tab"]       = btn_key_suffix
+                st.rerun()
+
+            def _show_lot_gen_results():
+                """Display lot generation results stored in session_state (survives rerun)."""
+                if "lot_gen_results" not in st.session_state:
+                    return
+                generated = st.session_state["lot_gen_generated"]
+                already   = st.session_state["lot_gen_already"]
+                skipped   = st.session_state["lot_gen_skipped"]
+                results   = st.session_state["lot_gen_results"]
+
+                if generated:
+                    st.success(f"✅ {generated} lot(s) generated successfully")
+                if already:
+                    st.markdown(
+                        f'<div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;'
+                        f'border-radius:8px;padding:14px 18px;margin:8px 0;">'
+                        f'<p style="color:#991b1b;font-size:14px;font-weight:800;margin:0 0 4px;">'
+                        f'🚫 Lot Already Generated — {already} Certificate(s)</p>'
+                        f'<p style="color:#b91c1c;font-size:12px;margin:0;">'
+                        f'A lot has already been generated for these certificates. They have been skipped.</p>'
+                        f'</div>',
+                        unsafe_allow_html=True,
                     )
-                    st.success(f"✅ {len(exp)} stones added to TXT file")
-                    st.dataframe(exp, use_container_width=True)
+                if skipped:
+                    st.markdown(
+                        f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
+                        f'border-radius:8px;padding:14px 18px;margin:8px 0;">'
+                        f'<p style="color:#92400e;font-size:14px;font-weight:800;margin:0 0 4px;">'
+                        f'⚠️ Buying Not Updated — {skipped} Certificate(s)</p>'
+                        f'<p style="color:#92400e;font-size:12px;margin:0;">'
+                        f'These certificates were not found in the buying file. Please upload the buying file first.</p>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                if results:
+                    st.dataframe(pd.DataFrame(results), use_container_width=True)
 
-            # ── Paste Certificate Numbers → TXT ───────────────────────────────────
-            st.markdown("---")
-            st.markdown(_label("📋  Paste Certificate Numbers → Generate TXT"), unsafe_allow_html=True)
-            paste_key   = f"paste_cert_{editor_key}"
-            paste_dl_key = f"paste_dl_{dl_key}"
-            paste_btn_key = f"paste_btn_{btn_key}"
-
-            paste_input = st.text_area(
-                "Paste certificate numbers (one per line)",
-                key=paste_key,
-                placeholder="LG123456\nLG789012\n...",
-                height=120,
-                label_visibility="collapsed",
-            )
-
-            paste_list = [normalize_cert(x.strip()) for x in paste_input.splitlines() if x.strip()] if paste_input else []
-
-            if paste_list:
-                st.markdown(
-                    f'<p style="font-size:12px;color:#171717;margin:4px 0 8px;">'
-                    f'📋 {len(paste_list)} certificate(s) entered</p>',
-                    unsafe_allow_html=True,
-                )
-
-            if st.button("📥 Generate TXT from Paste", key=paste_btn_key):
-                if not paste_list:
-                    st.warning("Paste at least one certificate number.")
-                else:
-                    # Fetch matching rows from today's lots OR any LOT status in DB
-                    all_lots_df = read_frame(
-                        "SELECT * FROM buying_stock WHERE lot_no IS NOT NULL AND stock_status != 'RETURN'",
+            def _render_today_lots(editor_key, btn_key, dl_key):
+                """Render today's generated lots table with checkboxes for TXT export."""
+                with st.container(key=f"lots_today_{editor_key}"):
+                    lot_today_df = read_frame(
+                        """
+                        SELECT * FROM buying_stock
+                        WHERE lot_no IS NOT NULL
+                          AND stock_status != 'RETURN'
+                          AND LEFT(lot_date, 10) = TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD')
+                        ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC
+                        """,
                         conn,
                     )
-                    matched = all_lots_df[all_lots_df["report_no"].astype(str).isin(paste_list)].copy()
-                    not_found = [c for c in paste_list if c not in all_lots_df["report_no"].astype(str).values]
 
-                    if matched.empty:
-                        st.error("❌ None of the entered certificates have a lot generated. Please generate lots first.")
-                    else:
-                        matched["per_carat"] = pd.to_numeric(matched["per_carat"], errors="coerce").fillna(0)
-                        matched["bank_rate"] = pd.to_numeric(matched["bank_rate"], errors="coerce").fillna(0)
-                        if is_video:
-                            exp = pd.DataFrame({
-                                "Lot#":         matched["lot_no"],
-                                "Certificate#": matched["report_no"],
-                                "Weight":       matched["cts"],
-                                "Cost/Cts":     0,
-                                "Lab":          matched["lab"],
-                            }).fillna("")
-                        else:
-                            exp = pd.DataFrame({
-                                "Certificate#": matched["report_no"],
-                                "Lot#":         matched["lot_no"],
-                                "Lab":          matched["lab"],
-                                "Weight":       matched["cts"],
-                                "Cost/Cts":     round(matched["per_carat"] * matched["bank_rate"], 2),
-                            }).fillna("")
-                        txt_content = exp.to_csv(sep="\t", index=False)
-                        st.download_button(
-                            label="⬇ Download TXT File",
-                            data=txt_content,
-                            file_name=f"Lot_File_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
-                            mime="text/plain",
-                            key=paste_dl_key,
-                        )
-                        st.success(f"✅ {len(exp)} stone(s) added to TXT file")
-                        st.dataframe(exp, use_container_width=True)
+                    st.subheader(f"🏷 Today's Generated Lots — {datetime.now().strftime('%d-%m-%Y')}")
 
-                    if not_found:
-                        st.markdown(
-                            f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
-                            f'border-radius:8px;padding:12px 16px;margin-top:8px;">'
-                            f'<p style="color:#92400e;font-size:13px;font-weight:700;margin:0 0 6px;">'
-                            f'⚠️ {len(not_found)} Certificate(s) — No Lot Found</p>'
-                            f'<p style="color:#92400e;font-size:12px;margin:0 0 6px;">'
-                            f'These certificates do not have a lot generated:</p>'
-                            f'<ul style="color:#92400e;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
-                            + "".join(f"<li>{c}</li>" for c in not_found) +
-                            f'</ul></div>',
-                            unsafe_allow_html=True,
-                        )
-        if lot_section == '📂 Excel Upload':
-            st.markdown(_label("📂  Excel must have REPORT and MEMO NO columns", margin_bottom=12), unsafe_allow_html=True)
+                    # ── Report No / Lot No filters ────────────────────────────────────
+                    flt1, flt2 = st.columns(2)
+                    report_flt_val = flt1.text_input("REPORT NO", key=f"{editor_key}_report_filter", placeholder="LG123…")
+                    lot_flt_val    = flt2.text_input("LOT NO",    key=f"{editor_key}_lot_filter",    placeholder="918123…")
 
-            lot_file = st.file_uploader(
-                "Upload Excel (.xlsx)", type=["xlsx"], key="lot_upload"
-            )
+                    if report_flt_val:
+                        lot_today_df = lot_today_df[
+                            lot_today_df["report_no"].astype(str).str.contains(report_flt_val, case=False, na=False)
+                        ]
+                    if lot_flt_val:
+                        lot_today_df = lot_today_df[
+                            lot_today_df["lot_no"].astype(str).str.contains(lot_flt_val, case=False, na=False)
+                        ]
 
-            xl_report_list: list[str] = []
-            xl_memo_dict:   dict[str, str] = {}
+                    if lot_today_df.empty:
+                        st.info(f"ℹ️ No lots generated today ({datetime.now().strftime('%d-%m-%Y')}) matching your filters.")
+                        return
 
-            if lot_file:
-                lot_df = read_uploaded_excel(lot_file)
-                lot_df.columns = lot_df.columns.str.strip().str.upper()
-                lot_df = lot_df.fillna("")
-                st.dataframe(lot_df, use_container_width=True)
+                    pc  = pd.to_numeric(lot_today_df["per_carat"], errors="coerce").fillna(0)
+                    amt = pd.to_numeric(lot_today_df["amount"],    errors="coerce").fillna(0)
+                    br  = pd.to_numeric(lot_today_df["bank_rate"], errors="coerce").fillna(0)
 
-                if "REPORT" not in lot_df.columns or "MEMO NO" not in lot_df.columns:
-                    st.error("❌ Excel must contain REPORT and MEMO NO columns")
-                else:
-                    for _, row in lot_df.iterrows():
-                        r = normalize_cert(str(row["REPORT"]).strip())
-                        xl_report_list.append(r)
-                        xl_memo_dict[r] = str(row["MEMO NO"]).strip()
+                    if is_video:
+                        pc  = pc  * 0
+                        amt = amt * 0
+                        br  = br  * 0
+
+                    tbl = pd.DataFrame({
+                        "SELECT":             False,
+                        "CERTIFICATE":        lot_today_df["report_no"].values,
+                        "LOT NUMBER":         lot_today_df["lot_no"].values,
+                        "MEMO NO":            lot_today_df["memo_no"].values,
+                        "BUYER NAME":         lot_today_df["buyer_name"].values,
+                        "BUY DATE":           pd.to_datetime(lot_today_df["buying_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
+                        "PARTY NAME":         lot_today_df["party_name"].values,
+                        "LAB":                lot_today_df["lab"].values,
+                        "WT.":                lot_today_df["cts"].values,
+                        "SHAPE":              lot_today_df["shape"].values,
+                        "ORG.COST":           pc.values,
+                        "BANK RATE":          br.values,
+                        "TOTAL BUYING PRICE": amt.values,
+                        "INR P/C":            round(pc * br, 2).values,
+                        "INR TOTAL":          round(amt * br, 2).values,
+                        "REMARK":             lot_today_df["remark"].values,
+                    }).fillna("")
 
                     st.markdown(
-                        f'<p style="font-size:12px;color:#171717;margin:8px 0;">'
-                        f'📋 {len(xl_report_list)} certificate(s) ready</p>',
+                        '<p style="font-size:12px;color:#737373;margin-bottom:6px;">'
+                        '☑ Tick rows → Generate TXT</p>',
                         unsafe_allow_html=True,
                     )
 
-            if st.button("🚀 Generate Lots (Excel)", key="gen_lots_excel_btn"):
-                if not xl_report_list:
-                    st.warning("Upload a valid Excel file first.")
-                else:
-                    run_lot_generation(xl_report_list, xl_memo_dict, "xl")
+                    # ── SELECT ALL toggle ──────────────────────────────────────────────
+                    select_all_key = f"select_all_{editor_key}"
+                    select_all = st.checkbox("☑ Select All / Deselect All", key=select_all_key)
+                    tbl["SELECT"] = select_all
 
-            # Show results after button click (survives rerun via session_state)
-            if st.session_state.get("lot_gen_tab") == "xl":
-                _show_lot_gen_results()
-
-            # ── Today's Generated Lots table (Excel Upload tab) ──────────────────
-            st.divider()
-            _render_today_lots("lot_table_editor_xl", "generate_txt_btn_xl", "download_txt_lot_btn_xl")
-
-        # ── SUB-TAB 2: Copy-Paste Text ───────────────────────────────────────────
-        if lot_section == '📋 Input IGI No':
-            st.markdown(_label("📋  Paste certificate numbers and one memo no for all", margin_bottom=12), unsafe_allow_html=True)
-
-            cp_col1, cp_col2 = st.columns([3, 1])
-
-            with cp_col1:
-                cp_certs = st.text_area(
-                    "CERTIFICATE NUMBERS (one per line)",
-                    key="cp_certs_box",
-                    placeholder="LG123456\nLG789012\nLG345678\n...",
-                    height=200,
-                )
-
-            with cp_col2:
-                cp_memo = st.text_input(
-                    "MEMO NO",
-                    key="cp_memo_input",
-                    placeholder="e.g. AP2050",
-                )
-                st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-
-                # Live preview of count
-                cp_list = [normalize_cert(x.strip()) for x in cp_certs.splitlines() if x.strip()] if cp_certs else []
-                st.markdown(
-                    f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
-                    f'border-radius:8px;padding:12px 16px;text-align:center;">'
-                    f'<p style="font-size:12px;color:#737373;margin:0 0 4px;">CERTIFICATES</p>'
-                    f'<p style="font-size:24px;font-weight:800;color:#171717;margin:0;">{len(cp_list)}</p>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-
-                st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-                st.markdown(
-                    f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
-                    f'border-radius:8px;padding:12px 16px;text-align:center;">'
-                    f'<p style="font-size:12px;color:#737373;margin:0 0 4px;">MEMO NO</p>'
-                    f'<p style="font-size:16px;font-weight:800;color:#171717;margin:0;">'
-                    f'{cp_memo if cp_memo else "—"}</p>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-
-            if st.button("🚀 Generate Lots (Text)", key="gen_lots_text_btn"):
-                if not cp_list:
-                    st.warning("Paste at least one certificate number.")
-                elif not cp_memo.strip():
-                    st.warning("Enter a Memo No.")
-                else:
-                    # Same memo for all certs, each gets its own lot number
-                    cp_memo_dict = {r: cp_memo.strip() for r in cp_list}
-                    run_lot_generation(cp_list, cp_memo_dict, "cp")
-
-            # Show results after button click (survives rerun via session_state)
-            if st.session_state.get("lot_gen_tab") == "cp":
-                _show_lot_gen_results()
-
-            # ── Today's Generated Lots table (Input IGI No tab) ──────────────────
-            st.divider()
-            _render_today_lots("lot_table_editor_cp", "generate_txt_btn_cp", "download_txt_lot_btn_cp")
-
-        # ── SUB-TAB 3: Master Lot Data (lazy loading) ─────────────────────────
-        if lot_section == '📊 Master Lot Data':
-            st.markdown(_label("📊  All lots generated before today", margin_bottom=12), unsafe_allow_html=True)
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            master_where = """
-                lot_no IS NOT NULL
-                AND stock_status != 'RETURN'
-                AND NULLIF(LEFT(lot_date, 10), '')::date < CAST(? AS date)
-            """
-            # Lightweight aggregate only: no master data rows are fetched on page load.
-            totals = conn.cursor()
-            try:
-                totals.execute(
-                    "SELECT COUNT(*), COALESCE(SUM(cts), 0), COALESCE(SUM(amount), 0) "
-                    "FROM buying_stock WHERE " + master_where,
-                    (today_str,),
-                )
-                master_count, master_cts, master_amount = totals.fetchone()
-            finally:
-                totals.close()
-
-            mm1, mm2, mm3 = st.columns(3)
-            mm1.metric("💎 Total Stones", f"{master_count:,}")
-            mm2.metric("📦 Total Carats", f"{float(master_cts):,.2f}")
-            if not is_video:
-                mm3.metric("💰 Total AMT USD", f"{float(master_amount):,.2f}")
-
-            if not master_count:
-                st.info("ℹ️ No master lots generated before today.")
-            else:
-                st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
-                st.caption("No full data is loaded on opening this page. Excel data is fetched only when you click Prepare Excel.")
-                pasted_certificates = st.text_area(
-                    "Certificate numbers for TXT",
-                    key="master_paste_certificates",
-                    placeholder="LG841638639\\nLG841638699",
-                    height=110,
-                )
-                selection = list(dict.fromkeys(
-                    normalize_cert(x.strip()) for x in pasted_certificates.splitlines() if x.strip()
-                ))
-                txt_col, excel_col = st.columns([1, 1])
-
-                if txt_col.button("📥 Generate TXT", key="master_generate_txt_btn", use_container_width=True):
-                    st.session_state.pop("master_txt_content", None)
-                    st.session_state.pop("master_txt_count", None)
-                    if not selection:
-                        st.warning("⚠️ Paste at least one certificate number.")
-                    else:
-                        matched = read_frame(
-                            """
-                            SELECT report_no, lot_no, lab, cts, per_carat, bank_rate
-                            FROM buying_stock
-                            WHERE """ + master_where + " AND report_no = ANY(?)",
-                            conn,
-                            params=(today_str, selection),
-                        )
-                        found = set(matched["report_no"].astype(str))
-                        missing = [cert for cert in selection if cert not in found]
-                        if missing:
-                            st.warning(f"⚠️ {len(missing)} certificate(s) not found in master lots: " + ", ".join(missing[:15]))
-                        if matched.empty:
-                            st.error("No matching master lots found.")
-                        else:
-                            cost = pd.to_numeric(matched["per_carat"], errors="coerce").fillna(0)
-                            bank = pd.to_numeric(matched["bank_rate"], errors="coerce").fillna(0)
-                            if is_video:
-                                export_df = pd.DataFrame({
-                                    "Lot#": matched["lot_no"],
-                                    "Certificate#": matched["report_no"],
-                                    "Weight": matched["cts"],
-                                    "Cost/Cts": 0,
-                                    "Lab": matched["lab"],
-                                }).fillna("")
-                            else:
-                                export_df = pd.DataFrame({
-                                    "Certificate#": matched["report_no"],
-                                    "Lot#": matched["lot_no"],
-                                    "Lab": matched["lab"],
-                                    "Weight": matched["cts"],
-                                    "Cost/Cts": round(cost * bank, 2),
-                                }).fillna("")
-                            st.session_state["master_txt_content"] = export_df.to_csv(sep="\\t", index=False)
-                            st.session_state["master_txt_count"] = len(export_df)
-
-                if st.session_state.get("master_txt_content"):
-                    st.success(f"✅ {st.session_state['master_txt_count']} stones ready for TXT download")
-                    st.download_button(
-                        "⬇ Download TXT File",
-                        data=st.session_state["master_txt_content"],
-                        file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
-                        mime="text/plain",
-                        key="master_download_txt_btn",
+                    edited = st.data_editor(
+                        tbl,
+                        column_config={
+                            "SELECT": st.column_config.CheckboxColumn("✔", default=False, width="small"),
+                        },
+                        disabled=[c for c in tbl.columns if c != "SELECT"],
+                        use_container_width=True,
+                        hide_index=True,
+                        key=editor_key,
+                        height=520,
                     )
 
-                if excel_col.button("📊 Prepare Full Master Excel", key="master_prepare_excel_btn", use_container_width=True):
-                    # Full SELECT and Excel conversion run ONLY when this button is clicked.
-                    st.session_state.pop("master_excel_bytes", None)
-                    with st.spinner("Fetching master lots from Neon and preparing Excel..."):
-                        master_df = read_frame(
-                            """
-                            SELECT report_no, lot_no, memo_no, buyer_name, buying_date,
-                                   party_name, lab, cts, shape, color, clarity,
-                                   per_carat, bank_rate, amount, lot_date, remark
-                            FROM buying_stock
-                            WHERE """ + master_where + """
-                            ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC
-                            """,
-                            conn,
-                            params=(today_str,),
-                        )
-                        pc = pd.to_numeric(master_df["per_carat"], errors="coerce").fillna(0)
-                        rate = pd.to_numeric(master_df["bank_rate"], errors="coerce").fillna(0)
-                        amt = pd.to_numeric(master_df["amount"], errors="coerce").fillna(0)
-                        if is_video:
-                            pc = pc * 0
-                            rate = rate * 0
-                            amt = amt * 0
-                        master_export = pd.DataFrame({
-                            "CERTIFICATE": master_df["report_no"].values,
-                            "LOT NUMBER": master_df["lot_no"].values,
-                            "MEMO NO": master_df["memo_no"].values,
-                            "BUYER NAME": master_df["buyer_name"].values,
-                            "BUY DATE": pd.to_datetime(master_df["buying_date"], errors="coerce", dayfirst=True).dt.strftime("%d-%m-%Y").values,
-                            "PARTY NAME": master_df["party_name"].values,
-                            "LAB": master_df["lab"].values,
-                            "WT.": master_df["cts"].values,
-                            "SHAPE": master_df["shape"].values,
-                            "COLOR": master_df["color"].values,
-                            "CLARITY": master_df["clarity"].values,
-                            "ORG.COST": pc.values,
-                            "BANK RATE": rate.values,
-                            "TOTAL BUYING PRICE": amt.values,
-                            "INR P/C": round(pc * rate, 2).values,
-                            "INR TOTAL": round(amt * rate, 2).values,
-                            "LOT DATE": pd.to_datetime(master_df["lot_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
-                            "REMARK": master_df["remark"].values,
-                        }).fillna("")
-                        import io
-                        stream = io.BytesIO()
-                        master_export.to_excel(stream, index=False, engine="openpyxl")
-                        st.session_state["master_excel_bytes"] = stream.getvalue()
-                        st.session_state["master_excel_row_count"] = len(master_export)
+                    selected = edited[edited["SELECT"] == True]["CERTIFICATE"].tolist()
 
-                if st.session_state.get("master_excel_bytes"):
-                    st.success(f"✅ {st.session_state['master_excel_row_count']:,} master lots ready to download")
-                    st.download_button(
-                        "⬇ Download Full Master Excel",
-                        data=st.session_state["master_excel_bytes"],
-                        file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y')}.xlsx",
+                    # ── Excel download for today's lots (ALL rows included, with a
+                    #     SELECTED column reflecting each row's tick state: TRUE/FALSE) ──
+                    import io as _io
+                    _today_excel_buf = _io.BytesIO()
+                    _today_excel_export = edited.copy()
+                    _today_excel_export["SELECT"] = _today_excel_export["SELECT"].astype(bool)
+                    _today_excel_export = _today_excel_export.rename(columns={"SELECT": "SELECTED"})
+                    # Move SELECTED to the front so it's easy to spot
+                    _today_excel_export = _today_excel_export[
+                        ["SELECTED"] + [c for c in _today_excel_export.columns if c != "SELECTED"]
+                    ]
+                    _today_excel_export.to_excel(_today_excel_buf, index=False, engine="openpyxl")
+                    _today_excel_buf.seek(0)
+
+                    bc1, bc2, bc3 = st.columns([3, 1, 1])
+                    bc1.markdown(
+                        f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
+                        f'border-radius:8px;padding:10px 16px;margin-top:6px;display:inline-block;">'
+                        f'<span style="font-size:12px;color:#737373;">SELECTED</span>'
+                        f'&nbsp;&nbsp;<span style="font-size:20px;font-weight:800;color:#171717;">{len(selected)}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                    bc3.download_button(
+                        label="⬇ Excel",
+                        data=_today_excel_buf,
+                        file_name=f"Today_Lots_{datetime.now().strftime('%d%m%Y')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="master_lot_download_btn",
+                        key=f"today_excel_dl_{dl_key}",
                         use_container_width=True,
                     )
+                    if bc2.button("📥 Generate TXT", key=btn_key):
+                        if not selected:
+                            st.warning("⚠️ Please select at least one row first.")
+                        else:
+                            rows = lot_today_df[lot_today_df["report_no"].astype(str).isin(selected)].copy()
+                            rows["per_carat"] = pd.to_numeric(rows["per_carat"], errors="coerce").fillna(0)
+                            rows["bank_rate"] = pd.to_numeric(rows["bank_rate"], errors="coerce").fillna(0)
+                            if is_video:
+                                exp = pd.DataFrame({
+                                    "Lot#":         rows["lot_no"],
+                                    "Certificate#": rows["report_no"],
+                                    "Weight":       rows["cts"],
+                                    "Cost/Cts":     0,
+                                    "Lab":          rows["lab"],
+                                }).fillna("")
+                            else:
+                                exp = pd.DataFrame({
+                                    "Certificate#": rows["report_no"],
+                                    "Lot#":         rows["lot_no"],
+                                    "Lab":          rows["lab"],
+                                    "Weight":       rows["cts"],
+                                    "Cost/Cts":     round(rows["per_carat"] * rows["bank_rate"], 2),
+                                }).fillna("")
+                            txt_content = exp.to_csv(sep="\t", index=False)
+                            st.download_button(
+                                label="⬇ Download TXT File",
+                                data=txt_content,
+                                file_name=f"Lot_File_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
+                                mime="text/plain",
+                                key=dl_key,
+                            )
+                            st.success(f"✅ {len(exp)} stones added to TXT file")
+                            st.dataframe(exp, use_container_width=True)
+
+                    # ── Paste Certificate Numbers → TXT ───────────────────────────────────
+                    st.markdown("---")
+                    st.markdown(_label("📋  Paste Certificate Numbers → Generate TXT"), unsafe_allow_html=True)
+                    paste_key   = f"paste_cert_{editor_key}"
+                    paste_dl_key = f"paste_dl_{dl_key}"
+                    paste_btn_key = f"paste_btn_{btn_key}"
+
+                    paste_input = st.text_area(
+                        "Paste certificate numbers (one per line)",
+                        key=paste_key,
+                        placeholder="LG123456\nLG789012\n...",
+                        height=120,
+                        label_visibility="collapsed",
+                    )
+
+                    paste_list = [normalize_cert(x.strip()) for x in paste_input.splitlines() if x.strip()] if paste_input else []
+
+                    if paste_list:
+                        st.markdown(
+                            f'<p style="font-size:12px;color:#171717;margin:4px 0 8px;">'
+                            f'📋 {len(paste_list)} certificate(s) entered</p>',
+                            unsafe_allow_html=True,
+                        )
+
+                    if st.button("📥 Generate TXT from Paste", key=paste_btn_key):
+                        if not paste_list:
+                            st.warning("Paste at least one certificate number.")
+                        else:
+                            # Fetch matching rows from today's lots OR any LOT status in DB
+                            all_lots_df = read_frame(
+                                "SELECT * FROM buying_stock WHERE lot_no IS NOT NULL AND stock_status != 'RETURN'",
+                                conn,
+                            )
+                            matched = all_lots_df[all_lots_df["report_no"].astype(str).isin(paste_list)].copy()
+                            not_found = [c for c in paste_list if c not in all_lots_df["report_no"].astype(str).values]
+
+                            if matched.empty:
+                                st.error("❌ None of the entered certificates have a lot generated. Please generate lots first.")
+                            else:
+                                matched["per_carat"] = pd.to_numeric(matched["per_carat"], errors="coerce").fillna(0)
+                                matched["bank_rate"] = pd.to_numeric(matched["bank_rate"], errors="coerce").fillna(0)
+                                if is_video:
+                                    exp = pd.DataFrame({
+                                        "Lot#":         matched["lot_no"],
+                                        "Certificate#": matched["report_no"],
+                                        "Weight":       matched["cts"],
+                                        "Cost/Cts":     0,
+                                        "Lab":          matched["lab"],
+                                    }).fillna("")
+                                else:
+                                    exp = pd.DataFrame({
+                                        "Certificate#": matched["report_no"],
+                                        "Lot#":         matched["lot_no"],
+                                        "Lab":          matched["lab"],
+                                        "Weight":       matched["cts"],
+                                        "Cost/Cts":     round(matched["per_carat"] * matched["bank_rate"], 2),
+                                    }).fillna("")
+                                txt_content = exp.to_csv(sep="\t", index=False)
+                                st.download_button(
+                                    label="⬇ Download TXT File",
+                                    data=txt_content,
+                                    file_name=f"Lot_File_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
+                                    mime="text/plain",
+                                    key=paste_dl_key,
+                                )
+                                st.success(f"✅ {len(exp)} stone(s) added to TXT file")
+                                st.dataframe(exp, use_container_width=True)
+
+                            if not_found:
+                                st.markdown(
+                                    f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
+                                    f'border-radius:8px;padding:12px 16px;margin-top:8px;">'
+                                    f'<p style="color:#92400e;font-size:13px;font-weight:700;margin:0 0 6px;">'
+                                    f'⚠️ {len(not_found)} Certificate(s) — No Lot Found</p>'
+                                    f'<p style="color:#92400e;font-size:12px;margin:0 0 6px;">'
+                                    f'These certificates do not have a lot generated:</p>'
+                                    f'<ul style="color:#92400e;font-size:12px;margin:0 0 0 16px;padding:0;line-height:1.8;">'
+                                    + "".join(f"<li>{c}</li>" for c in not_found) +
+                                    f'</ul></div>',
+                                    unsafe_allow_html=True,
+                                )
+            if lot_section == '📂 Excel Upload':
+                with st.container(key="lots_upload_panel"):
+                    st.subheader("Generate lots from Excel")
+                    st.markdown(_label("📂  Excel must have REPORT and MEMO NO columns", margin_bottom=12), unsafe_allow_html=True)
+
+                    lot_file = st.file_uploader(
+                        "Upload Excel (.xlsx)", type=["xlsx"], key="lot_upload"
+                    )
+
+                    xl_report_list: list[str] = []
+                    xl_memo_dict:   dict[str, str] = {}
+
+                    if lot_file:
+                        lot_df = read_uploaded_excel(lot_file)
+                        lot_df.columns = lot_df.columns.str.strip().str.upper()
+                        lot_df = lot_df.fillna("")
+                        st.dataframe(lot_df, use_container_width=True)
+
+                        if "REPORT" not in lot_df.columns or "MEMO NO" not in lot_df.columns:
+                            st.error("❌ Excel must contain REPORT and MEMO NO columns")
+                        else:
+                            for _, row in lot_df.iterrows():
+                                r = normalize_cert(str(row["REPORT"]).strip())
+                                xl_report_list.append(r)
+                                xl_memo_dict[r] = str(row["MEMO NO"]).strip()
+
+                            st.markdown(
+                                f'<p style="font-size:12px;color:#171717;margin:8px 0;">'
+                                f'📋 {len(xl_report_list)} certificate(s) ready</p>',
+                                unsafe_allow_html=True,
+                            )
+
+                    if st.button("🚀 Generate Lots (Excel)", key="gen_lots_excel_btn", type="primary"):
+                        if not xl_report_list:
+                            st.warning("Upload a valid Excel file first.")
+                        else:
+                            run_lot_generation(xl_report_list, xl_memo_dict, "xl")
+
+                    # Show results after button click (survives rerun via session_state)
+                    if st.session_state.get("lot_gen_tab") == "xl":
+                        _show_lot_gen_results()
+
+                # ── Today's Generated Lots table (Excel Upload tab) ──────────────────
+                st.divider()
+                _render_today_lots("lot_table_editor_xl", "generate_txt_btn_xl", "download_txt_lot_btn_xl")
+
+            # ── SUB-TAB 2: Copy-Paste Text ───────────────────────────────────────────
+            if lot_section == '📋 Input IGI No':
+                with st.container(key="lots_input_panel"):
+                    st.subheader("Generate lots from certificate numbers")
+                    st.markdown(_label("📋  Paste certificate numbers and one memo no for all", margin_bottom=12), unsafe_allow_html=True)
+
+                    cp_col1, cp_col2 = st.columns([3, 1])
+
+                    with cp_col1:
+                        cp_certs = st.text_area(
+                            "CERTIFICATE NUMBERS (one per line)",
+                            key="cp_certs_box",
+                            placeholder="LG123456\nLG789012\nLG345678\n...",
+                            height=200,
+                        )
+
+                    with cp_col2:
+                        cp_memo = st.text_input(
+                            "MEMO NO",
+                            key="cp_memo_input",
+                            placeholder="e.g. AP2050",
+                        )
+                        st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+
+                        # Live preview of count
+                        cp_list = [normalize_cert(x.strip()) for x in cp_certs.splitlines() if x.strip()] if cp_certs else []
+                        st.markdown(
+                            f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
+                            f'border-radius:8px;padding:12px 16px;text-align:center;">'
+                            f'<p style="font-size:12px;color:#737373;margin:0 0 4px;">CERTIFICATES</p>'
+                            f'<p style="font-size:24px;font-weight:800;color:#171717;margin:0;">{len(cp_list)}</p>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-top:2px solid #171717;'
+                            f'border-radius:8px;padding:12px 16px;text-align:center;">'
+                            f'<p style="font-size:12px;color:#737373;margin:0 0 4px;">MEMO NO</p>'
+                            f'<p style="font-size:16px;font-weight:800;color:#171717;margin:0;">'
+                            f'{cp_memo if cp_memo else "—"}</p>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                    if st.button("🚀 Generate Lots (Text)", key="gen_lots_text_btn", type="primary"):
+                        if not cp_list:
+                            st.warning("Paste at least one certificate number.")
+                        elif not cp_memo.strip():
+                            st.warning("Enter a Memo No.")
+                        else:
+                            # Same memo for all certs, each gets its own lot number
+                            cp_memo_dict = {r: cp_memo.strip() for r in cp_list}
+                            run_lot_generation(cp_list, cp_memo_dict, "cp")
+
+                    # Show results after button click (survives rerun via session_state)
+                    if st.session_state.get("lot_gen_tab") == "cp":
+                        _show_lot_gen_results()
+
+                    # ── Today's Generated Lots table (Input IGI No tab) ──────────────────
+                    st.divider()
+                _render_today_lots("lot_table_editor_cp", "generate_txt_btn_cp", "download_txt_lot_btn_cp")
+
+            # ── SUB-TAB 3: Master Lot Data (lazy loading) ─────────────────────────
+            if lot_section == '📊 Master Lot Data':
+                st.markdown(_label("📊  All lots generated before today", margin_bottom=12), unsafe_allow_html=True)
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                master_where = """
+                    lot_no IS NOT NULL
+                    AND stock_status != 'RETURN'
+                    AND NULLIF(LEFT(lot_date, 10), '')::date < CAST(? AS date)
+                """
+                # Lightweight aggregate only: no master data rows are fetched on page load.
+                totals = conn.cursor()
+                try:
+                    totals.execute(
+                        "SELECT COUNT(*), COALESCE(SUM(cts), 0), COALESCE(SUM(amount), 0) "
+                        "FROM buying_stock WHERE " + master_where,
+                        (today_str,),
+                    )
+                    master_count, master_cts, master_amount = totals.fetchone()
+                finally:
+                    totals.close()
+
+                mm1, mm2, mm3 = st.columns(3)
+                mm1.metric("💎 Total Stones", f"{master_count:,}")
+                mm2.metric("📦 Total Carats", f"{float(master_cts):,.2f}")
+                if not is_video:
+                    mm3.metric("💰 Total AMT USD", f"{float(master_amount):,.2f}")
+
+                if not master_count:
+                    st.info("ℹ️ No master lots generated before today.")
+                else:
+                    st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+                    st.caption("No full data is loaded on opening this page. Excel data is fetched only when you click Prepare Excel.")
+                    pasted_certificates = st.text_area(
+                        "Certificate numbers for TXT",
+                        key="master_paste_certificates",
+                        placeholder="LG841638639\\nLG841638699",
+                        height=110,
+                    )
+                    selection = list(dict.fromkeys(
+                        normalize_cert(x.strip()) for x in pasted_certificates.splitlines() if x.strip()
+                    ))
+                    txt_col, excel_col = st.columns([1, 1])
+
+                    if txt_col.button("📥 Generate TXT", key="master_generate_txt_btn", use_container_width=True):
+                        st.session_state.pop("master_txt_content", None)
+                        st.session_state.pop("master_txt_count", None)
+                        if not selection:
+                            st.warning("⚠️ Paste at least one certificate number.")
+                        else:
+                            matched = read_frame(
+                                """
+                                SELECT report_no, lot_no, lab, cts, per_carat, bank_rate
+                                FROM buying_stock
+                                WHERE """ + master_where + " AND report_no = ANY(?)",
+                                conn,
+                                params=(today_str, selection),
+                            )
+                            found = set(matched["report_no"].astype(str))
+                            missing = [cert for cert in selection if cert not in found]
+                            if missing:
+                                st.warning(f"⚠️ {len(missing)} certificate(s) not found in master lots: " + ", ".join(missing[:15]))
+                            if matched.empty:
+                                st.error("No matching master lots found.")
+                            else:
+                                cost = pd.to_numeric(matched["per_carat"], errors="coerce").fillna(0)
+                                bank = pd.to_numeric(matched["bank_rate"], errors="coerce").fillna(0)
+                                if is_video:
+                                    export_df = pd.DataFrame({
+                                        "Lot#": matched["lot_no"],
+                                        "Certificate#": matched["report_no"],
+                                        "Weight": matched["cts"],
+                                        "Cost/Cts": 0,
+                                        "Lab": matched["lab"],
+                                    }).fillna("")
+                                else:
+                                    export_df = pd.DataFrame({
+                                        "Certificate#": matched["report_no"],
+                                        "Lot#": matched["lot_no"],
+                                        "Lab": matched["lab"],
+                                        "Weight": matched["cts"],
+                                        "Cost/Cts": round(cost * bank, 2),
+                                    }).fillna("")
+                                st.session_state["master_txt_content"] = export_df.to_csv(sep="\\t", index=False)
+                                st.session_state["master_txt_count"] = len(export_df)
+
+                    if st.session_state.get("master_txt_content"):
+                        st.success(f"✅ {st.session_state['master_txt_count']} stones ready for TXT download")
+                        st.download_button(
+                            "⬇ Download TXT File",
+                            data=st.session_state["master_txt_content"],
+                            file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
+                            mime="text/plain",
+                            key="master_download_txt_btn",
+                        )
+
+                    if excel_col.button("📊 Prepare Full Master Excel", key="master_prepare_excel_btn", use_container_width=True):
+                        # Full SELECT and Excel conversion run ONLY when this button is clicked.
+                        st.session_state.pop("master_excel_bytes", None)
+                        with st.spinner("Fetching master lots from Neon and preparing Excel..."):
+                            master_df = read_frame(
+                                """
+                                SELECT report_no, lot_no, memo_no, buyer_name, buying_date,
+                                       party_name, lab, cts, shape, color, clarity,
+                                       per_carat, bank_rate, amount, lot_date, remark
+                                FROM buying_stock
+                                WHERE """ + master_where + """
+                                ORDER BY CASE WHEN lot_no ~ '^[0-9]+$' THEN lot_no::numeric ELSE 0 END DESC
+                                """,
+                                conn,
+                                params=(today_str,),
+                            )
+                            pc = pd.to_numeric(master_df["per_carat"], errors="coerce").fillna(0)
+                            rate = pd.to_numeric(master_df["bank_rate"], errors="coerce").fillna(0)
+                            amt = pd.to_numeric(master_df["amount"], errors="coerce").fillna(0)
+                            if is_video:
+                                pc = pc * 0
+                                rate = rate * 0
+                                amt = amt * 0
+                            master_export = pd.DataFrame({
+                                "CERTIFICATE": master_df["report_no"].values,
+                                "LOT NUMBER": master_df["lot_no"].values,
+                                "MEMO NO": master_df["memo_no"].values,
+                                "BUYER NAME": master_df["buyer_name"].values,
+                                "BUY DATE": pd.to_datetime(master_df["buying_date"], errors="coerce", dayfirst=True).dt.strftime("%d-%m-%Y").values,
+                                "PARTY NAME": master_df["party_name"].values,
+                                "LAB": master_df["lab"].values,
+                                "WT.": master_df["cts"].values,
+                                "SHAPE": master_df["shape"].values,
+                                "COLOR": master_df["color"].values,
+                                "CLARITY": master_df["clarity"].values,
+                                "ORG.COST": pc.values,
+                                "BANK RATE": rate.values,
+                                "TOTAL BUYING PRICE": amt.values,
+                                "INR P/C": round(pc * rate, 2).values,
+                                "INR TOTAL": round(amt * rate, 2).values,
+                                "LOT DATE": pd.to_datetime(master_df["lot_date"], errors="coerce").dt.strftime("%d-%m-%Y").values,
+                                "REMARK": master_df["remark"].values,
+                            }).fillna("")
+                            import io
+                            stream = io.BytesIO()
+                            master_export.to_excel(stream, index=False, engine="openpyxl")
+                            st.session_state["master_excel_bytes"] = stream.getvalue()
+                            st.session_state["master_excel_row_count"] = len(master_export)
+
+                    if st.session_state.get("master_excel_bytes"):
+                        st.success(f"✅ {st.session_state['master_excel_row_count']:,} master lots ready to download")
+                        st.download_button(
+                            "⬇ Download Full Master Excel",
+                            data=st.session_state["master_excel_bytes"],
+                            file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="master_lot_download_btn",
+                            use_container_width=True,
+                        )
 
 
     # ══════════════════════════════════════════════════════════════════════════
