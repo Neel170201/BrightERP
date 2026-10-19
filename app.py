@@ -2647,10 +2647,9 @@ try:
                                    (category,alias,old,new,op,st.session_state.get('username',''),datetime.now().strftime('%Y-%m-%d %H:%M:%S'),n))
                 with quick_tab:
                     st.markdown('#### 2. Select the name to map')
-                    left,right=st.columns([2,1])
-                    search=left.text_input('Search name',key=f'dq_search_{category}',placeholder='Example: RD, MAHANT, ARHAM...')
-                    only_pending=right.checkbox('Show only unmapped',value=True,key=f'dq_only_pending_{category}')
-                    display_df=pending_df if only_pending else values_df
+                    st.caption('Only names that have not been approved are shown here. Approved names can be reviewed under History & Old Stock.')
+                    search=st.text_input('Search pending name',key=f'dq_search_{category}',placeholder='Example: RD, MAHANT, ARHAM...')
+                    display_df=pending_df.copy()
                     if search.strip():
                         display_df=display_df[display_df['raw_name'].astype(str).str.contains(search.strip(),case=False,regex=False)]
                     st.dataframe(display_df[['raw_name','records','mapped_to']].rename(columns={'raw_name':'Name in stock','records':'Total stones','mapped_to':'Already mapped to'}).head(100),use_container_width=True,hide_index=True)
@@ -2668,8 +2667,8 @@ try:
                         target=(new_standard or (standard if standard!='— Type new standard name —' else '')).strip().upper()
                         if not raw or not target:
                             st.warning('Enter or select both names.')
-                        elif raw==target:
-                            st.info('Both names are identical. No alias mapping is needed.')
+                        elif raw in alias_map:
+                            st.warning(f'{raw} is already approved as {alias_map[raw]}. To change it, remove its mapping under History & Old Stock first.')
                         else:
                             old=alias_map.get(raw,'')
                             cursor.execute('INSERT INTO data_quality_mappings (category,alias,mapped_to,updated_by,updated_at) VALUES (?,?,?,?,?) ON CONFLICT(category,alias) DO UPDATE SET mapped_to=excluded.mapped_to,updated_by=excluded.updated_by,updated_at=excluded.updated_at',
@@ -2678,7 +2677,7 @@ try:
                                 cursor.execute('INSERT INTO shape_mappings (alias,mapped_to) VALUES (?,?) ON CONFLICT(alias) DO UPDATE SET mapped_to=excluded.mapped_to',(raw,target))
                             dq_audit('SAVE',raw,old,target)
                             conn.commit()
-                            st.success(f'Saved: {raw} → {target}. This mapping will apply to future uploads.')
+                            st.success(f'Approved: {raw} → {target}. This name will no longer appear in Quick Mapping. Future uploads will use this approved standard name.')
                             st.rerun()
                     st.caption('Example: RD → ROUND. Only merge Party or Buyer names after verifying they refer to the same entity.')
                 with bulk_tab:
@@ -2694,7 +2693,7 @@ try:
                                 st.error('CSV must contain alias and mapped_to columns.')
                             else:
                                 incoming=incoming[['alias','mapped_to']].apply(lambda col:col.astype(str).str.strip().str.upper())
-                                incoming=incoming[(incoming['alias']!='')&(incoming['mapped_to']!='')&(incoming['alias']!=incoming['mapped_to'])].drop_duplicates('alias',keep='last')
+                                incoming=incoming[(incoming['alias']!='')&(incoming['mapped_to']!='')].drop_duplicates('alias',keep='last')
                                 st.dataframe(incoming.head(200),hide_index=True,use_container_width=True)
                                 confirm_csv=st.checkbox(f'I verified all {len(incoming)} {category.lower()} aliases and targets',key='dq_bulk_confirm')
                                 if st.button('Save approved CSV mappings',disabled=not confirm_csv or incoming.empty,key='dq_bulk_save'):
@@ -2732,6 +2731,7 @@ try:
                             st.rerun()
                     st.markdown('#### Saved mappings and change history')
                     if alias_map:
+                        st.dataframe(pd.DataFrame([{'Approved name':a,'Standard name':t} for a,t in sorted(alias_map.items())]),use_container_width=True,hide_index=True)
                         approved_names=sorted(alias_map)
                         selected_delete=st.selectbox('Remove approved alias',approved_names,key='dq_delete_alias')
                         if st.button('Delete selected mapping',key='dq_delete_btn'):
