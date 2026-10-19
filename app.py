@@ -610,16 +610,59 @@ try:
 .home-summary-corner {display:none;}
 .home-summary-value {position:relative;z-index:1;color:#fff;font-size:clamp(17px,1.40vw,23px);font-weight:800;letter-spacing:-.035em;line-height:1.16;overflow-wrap:anywhere;padding-right:4px;font-variant-numeric:tabular-nums;}
 .home-summary-note {position:relative;z-index:1;margin-top:8px;font-size:10px;line-height:1.25;color:rgba(255,255,255,.88);}
-[class*="st-key-workspace_card_"] {background-color:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;box-shadow:none!important;}
-[class*="st-key-workspace_card_"]:hover {background-color:#ffffff!important;background-image:none!important;border-color:#cf9b5b!important;box-shadow:0 10px 28px rgba(16,40,66,.10)!important;}
+[class*="st-key-workspace_card_"] {transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease!important;}
+.workspace-shell {margin-top:12px;}
+.workspace-header {display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:6px 0 14px;}
+.workspace-title {font-size:24px;font-weight:800;line-height:1.1;color:#102842;margin:0;letter-spacing:-.02em;}
+.workspace-subtitle {margin-top:4px;font-size:12px;color:#6d7f97;line-height:1.45;}
+.workspace-helper {display:flex;align-items:center;gap:12px;color:#6f85a3;font-size:12px;white-space:nowrap;}
+.workspace-helper-pips {display:flex;align-items:center;gap:6px;}
+.workspace-helper-pips .bar {width:40px;height:2px;border-radius:999px;background:#5f89ff;opacity:.9;}
+.workspace-helper-pips .dot {width:7px;height:7px;border-radius:50%;background:#7ea0ff;}
+.workspace-helper-pips .dot.dim {opacity:.55;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card) {
+  border-radius:18px!important;border:1px solid #dbe6f2!important;overflow:hidden!important;box-shadow:0 10px 26px rgba(16,40,66,.06)!important;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card.ws-upload),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card.ws-upload) {background:linear-gradient(135deg,#f7fbff 0%,#edf4ff 100%)!important;border-color:#d9e7ff!important;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card.ws-stock),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card.ws-stock) {background:linear-gradient(135deg,#fffaf4 0%,#fef1e4 100%)!important;border-color:#f4dfc5!important;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card.ws-lot),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card.ws-lot) {background:linear-gradient(135deg,#f7fffb 0%,#ebfbf6 100%)!important;border-color:#d5f0e6!important;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card.ws-return),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card.ws-return) {background:linear-gradient(135deg,#fcf9ff 0%,#f1eaff 100%)!important;border-color:#e4d6fb!important;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card.ws-export),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card.ws-export) {background:linear-gradient(135deg,#fff9fb 0%,#ffeef2 100%)!important;border-color:#f8d6df!important;}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card.ws-admin),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card.ws-admin) {background:linear-gradient(135deg,#fbfaff 0%,#f0ecff 100%)!important;border-color:#ddd7fb!important;}
+[class*="st-key-workspace_card_"]:hover {transform:translateY(-2px)!important;box-shadow:0 16px 34px rgba(16,40,66,.10)!important;}
+.module-card {position:relative;min-height:96px;padding:22px 120px 10px 116px;}
+.module-icon {position:absolute;left:28px;top:20px;width:62px;height:62px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;background:var(--icon-bg);color:var(--icon-color);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);}
+.module-decor {position:absolute;right:26px;top:24px;font-size:74px;line-height:1;color:var(--decor-color);opacity:.42;pointer-events:none;user-select:none;}
+.module-card::after {content:"";position:absolute;left:0;right:0;bottom:-2px;height:38px;background:var(--wave);opacity:.95;pointer-events:none;}
+.module-title {margin:2px 0 8px;font-size:18px;font-weight:800;color:#102842;letter-spacing:-.02em;line-height:1.18;}
+.module-copy {margin:0;max-width:260px;font-size:14px;line-height:1.45;color:#60748e;}
+[data-testid="stVerticalBlock"]:has(.module-card) .stButton {margin-top:-2px;}
+[data-testid="stVerticalBlock"]:has(.module-card) .stButton button {background:transparent!important;border:0!important;box-shadow:none!important;min-height:auto!important;padding:0 0 18px 116px!important;justify-content:flex-start!important;text-align:left!important;font-size:14px!important;font-weight:700!important;line-height:1.2!important;border-radius:0!important;}
+[class*="st-key-nav_card_upload"] button {color:#2f7cf6!important;}
+[class*="st-key-nav_card_stock"] button {color:#ff7c1f!important;}
+[class*="st-key-nav_card_lot"] button {color:#16a96b!important;}
+[class*="st-key-nav_card_return"] button {color:#7a4cf6!important;}
+[class*="st-key-nav_card_export"] button {color:#ef476f!important;}
+[class*="st-key-nav_card_admin"] button {color:#6a46f5!important;}
+[class*="st-key-nav_card_"] button:hover {background:transparent!important;transform:translateX(3px);}
 .home-section {font-size:23px;font-weight:700;color:#102842;margin:18px 0 10px;}
-.module-card {min-height:56px;padding:2px 2px 0 54px;position:relative;}
-.module-icon {position:absolute;left:4px;top:2px;width:36px;height:36px;font-size:18px;border-radius:50%;box-shadow:none;border:0;}
-.module-icon:before,.module-card:after {display:none;}
-.module-title {font-size:15px;margin-bottom:4px;}
-.module-copy {font-size:12px;line-height:1.4;}
-[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card),[data-testid="stVerticalBlock"][style*="border"]:has(.module-card) {background:#ffffff!important;border:1px solid #dce5ed!important;border-radius:12px;box-shadow:none;}
-[data-testid="stVerticalBlock"]:has(.module-card) .stButton button {color:#087f8c;background:transparent;border:0;box-shadow:none;text-align:left;justify-content:flex-start;min-height:28px;padding-left:56px;}
+@media(max-width:1100px) {
+  .workspace-header {flex-direction:column;align-items:flex-start;gap:8px;}
+  .module-card {padding:20px 92px 10px 102px;min-height:90px;}
+  .module-icon {left:22px;width:56px;height:56px;font-size:26px;}
+  .module-decor {right:18px;top:28px;font-size:62px;}
+  [data-testid="stVerticalBlock"]:has(.module-card) .stButton button {padding-left:102px!important;}
+}
+@media(max-width:760px) {
+  .workspace-title {font-size:22px;}
+  .workspace-subtitle,.workspace-helper {font-size:11px;}
+  .module-card {padding:18px 72px 8px 86px;min-height:84px;}
+  .module-icon {left:18px;top:18px;width:48px;height:48px;border-radius:15px;font-size:22px;}
+  .module-title {font-size:16px;margin-bottom:6px;}
+  .module-copy {font-size:13px;max-width:none;}
+  .module-decor {font-size:50px;right:14px;top:26px;}
+  [data-testid="stVerticalBlock"]:has(.module-card) .stButton button {padding:0 0 16px 86px!important;font-size:13px!important;}
+}
 @media(min-width:761px) and (max-width:1100px) {
 [data-testid="stHorizontalBlock"]:has(.home-summary) {flex-wrap:wrap;}
 [data-testid="stHorizontalBlock"]:has(.home-summary)>[data-testid="stColumn"] {width:calc(33.333% - 12px)!important;flex:1 1 calc(33.333% - 12px)!important;min-width:0;}
@@ -700,29 +743,37 @@ try:
                         f'<div class="home-summary-note">{note}</div></div>',
                         unsafe_allow_html=True,
                     )
-        st.markdown('<div class="home-section">Your workspace</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="workspace-shell">'
+            '<div class="workspace-header">'
+            '<div><div class="workspace-title">Your Workspace</div>'
+            '<div class="workspace-subtitle">Quick access to key operations</div></div>'
+            '<div class="workspace-helper"><span class="workspace-helper-pips"><span class="bar"></span><span class="dot"></span><span class="dot dim"></span></span>'
+            '<span>Select a module to continue</span></div>'
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
         details = {
-            "upload": ("Buying Upload", "Import buying files and review incoming stones.", "↥"),
-            "stock": ("Buying Stock", "Search inventory and review stone details.", "⌕"),
-            "lot": ("Lots", "Create lots and track processing.", "◇"),
-            "return": ("Returns", "Manage returned stones and records.", "↺"),
-            "export": ("Exports", "Prepare shipments and review exports.", "➜"),
-            "admin": ("Admin", "Manage users and data quality.", "♙"),
+            "upload": ("Buying Upload", "Import buying files and review incoming stones.", "↑", "⇪", "#dcebff", "#2f7cf6", "rgba(47,124,246,.13)", "linear-gradient(180deg, rgba(104,159,255,.17) 0%, rgba(104,159,255,.11) 52%, rgba(104,159,255,0) 100%)"),
+            "stock": ("Buying Stock", "Search inventory and review stone details.", "▣", "□", "#f9e3c8", "#ff7c1f", "rgba(255,124,31,.12)", "linear-gradient(180deg, rgba(255,183,106,.18) 0%, rgba(255,183,106,.11) 52%, rgba(255,183,106,0) 100%)"),
+            "lot": ("Lots", "Create lots and track processing.", "◇", "◫", "#d7f4e6", "#18a868", "rgba(24,168,104,.13)", "linear-gradient(180deg, rgba(112,221,174,.18) 0%, rgba(112,221,174,.11) 52%, rgba(112,221,174,0) 100%)"),
+            "return": ("Returns", "Manage returned stones and records.", "↺", "◈", "#e7ddff", "#7a4cf6", "rgba(122,76,246,.13)", "linear-gradient(180deg, rgba(181,147,255,.18) 0%, rgba(181,147,255,.11) 52%, rgba(181,147,255,0) 100%)"),
+            "export": ("Exports", "Prepare shipments and review exports.", "↗", "▤", "#ffd9e3", "#ef476f", "rgba(239,71,111,.13)", "linear-gradient(180deg, rgba(255,144,175,.18) 0%, rgba(255,144,175,.11) 52%, rgba(255,144,175,0) 100%)"),
+            "admin": ("Admin", "Manage users and data quality.", "⚙", "⚙", "#e4dcff", "#6a46f5", "rgba(106,70,245,.12)", "linear-gradient(180deg, rgba(158,128,255,.18) 0%, rgba(158,128,255,.11) 52%, rgba(158,128,255,0) 100%)"),
         }
         for start in range(0, len(_nav), 3):
             for column, (key, _, _) in zip(st.columns(3), _nav[start:start+3]):
-                title, description, icon = details[key]
-                copper = key in ("upload", "lot", "export")
-                bg, color = ("#fbf0e7", "#ad642d") if copper else ("#e7f4f5", "#087f8c")
+                title, description, icon, decor, icon_bg, icon_color, decor_color, wave = details[key]
                 with column:
                     with st.container(border=True, key=f"workspace_card_{key}"):
                         st.markdown(
-                            f'<div class="module-card" style="--icon-bg:{bg};--icon-color:{color};">'
+                            f'<div class="module-card ws-{key}" style="--icon-bg:{icon_bg};--icon-color:{icon_color};--decor-color:{decor_color};--wave:{wave};">'
                             f'<div class="module-icon"><span class="glyph">{icon}</span></div>'
+                            f'<div class="module-decor" aria-hidden="true">{decor}</div>'
                             f'<p class="module-title">{title}</p><p class="module-copy">{description}</p></div>',
                             unsafe_allow_html=True,
                         )
-                        if st.button("Open →", key=f"nav_card_{key}", use_container_width=True):
+                        if st.button("Open Module  →", key=f"nav_card_{key}"):
                             st.session_state["page"] = key
                             st.rerun()
         if not is_video:
