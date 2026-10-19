@@ -705,7 +705,7 @@ try:
             "lot": ("Lots", "Create lots and track processing.", "◇"),
             "return": ("Returns", "Manage returned stones and records.", "↺"),
             "export": ("Exports", "Prepare shipments and review exports.", "➜"),
-            "admin": ("Admin", "Manage users and shape mappings.", "♙"),
+            "admin": ("Admin", "Manage users and data quality.", "♙"),
         }
         for start in range(0, len(_nav), 3):
             for column, (key, _, _) in zip(st.columns(3), _nav[start:start+3]):
@@ -816,6 +816,19 @@ try:
                 for _uc in ["BUYER NAME", "PARTY NAME", "LAB", "TYPE", "SHAPE", "COL", "CLA", "LOCATION", "REMARK"]:
                     if _uc in df.columns:
                         df[_uc] = df[_uc].astype(str).str.strip().str.upper()
+
+                # Apply approved Party/Buyer aliases on incoming uploads.
+                # The raw import preview is standardized only where an admin-approved alias exists.
+                cursor.execute("""CREATE TABLE IF NOT EXISTS data_quality_mappings (
+                    category TEXT NOT NULL, alias TEXT NOT NULL, mapped_to TEXT NOT NULL,
+                    updated_by TEXT, updated_at TEXT,
+                    PRIMARY KEY (category,alias))""")
+                conn.commit()
+                for _category, _column in (("Party", "PARTY NAME"), ("Buyer", "BUYER NAME")):
+                    if _column in df.columns:
+                        _approved = read_frame("SELECT alias,mapped_to FROM data_quality_mappings WHERE category=?", conn, params=(_category,))
+                        _lookup = {str(r['alias']).strip().upper():str(r['mapped_to']).strip().upper() for _,r in _approved.iterrows()}
+                        df[_column] = df[_column].apply(lambda v: _lookup.get(str(v).strip().upper(), v))
 
                 # ── Apply shape mappings from DB ───────────────────────────────
                 _shape_maps = read_frame(
@@ -2278,7 +2291,7 @@ try:
                 "🗑 Delete by Certificate",
                 "✏️ Edit Row by Certificate",
                 "👥 User Management",
-                "🔀 Shape Mapping",
+                "🛡️ Data Quality Center",
             ], horizontal=True, key="admin_section")
 
             # ── ADMIN SUB-TAB 1: FULL DB DOWNLOAD ─────────────────────────────────
@@ -2592,66 +2605,136 @@ try:
                             st.error("User not found")
                         st.rerun()
 
-        # ── ADMIN SUB-TAB 5: SHAPE MAPPING ────────────────────────────────────
-            if admin_section == '🔀 Shape Mapping':
-                st.markdown(_label("🔀  Shape Alias Mapping — alias entered in Excel → saved as mapped value in DB", margin_bottom=16), unsafe_allow_html=True)
-
-                # ── Current mappings table ─────────────────────────────────────
-                maps_df = read_frame(
-                    "SELECT id, alias, mapped_to FROM shape_mappings ORDER BY alias", conn
-                )
-
-                if maps_df.empty:
-                    st.info("ℹ️ No mappings saved yet. Add one below.")
-                else:
-                    st.markdown(_label("📋  Existing Mappings", margin_bottom=6), unsafe_allow_html=True)
-                    st.dataframe(
-                        maps_df.rename(columns={"id": "ID", "alias": "ALIAS (Excel value)", "mapped_to": "MAPPED TO (DB value)"}),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-
-                st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
-
-                # ── Add new mapping ────────────────────────────────────────────
-                st.markdown(_label("➕  Add / Update Mapping", margin_bottom=10), unsafe_allow_html=True)
-                mp1, mp2, mp3 = st.columns([2, 2, 1])
-                new_alias  = mp1.text_input("ALIAS (e.g. RBC)", key="map_alias",    placeholder="Value in Excel…")
-                new_mapped = mp2.text_input("MAPS TO (e.g. ROUND)", key="map_target", placeholder="Value to save in DB…")
-                mp3.markdown('<div style="height:26px;"></div>', unsafe_allow_html=True)
-                if mp3.button("💾 Save", key="save_mapping_btn"):
-                    alias_val  = new_alias.strip().upper()
-                    mapped_val = new_mapped.strip().upper()
-                    if not alias_val or not mapped_val:
-                        st.warning("Both Alias and Mapped To are required.")
+        # ── ADMIN SUB-TAB 5: DATA QUALITY CENTER ─────────────────────────────
+            if admin_section == '🛡️ Data Quality Center':
+                st.markdown(_label("🛡️ Data Quality Center — Shapes · Parties · Buyers", margin_bottom=12), unsafe_allow_html=True)
+                st.caption("Manage standardized names and their aliases. New uploads use approved mappings; existing stock is updated only after confirmation.")
+                cursor.execute("""CREATE TABLE IF NOT EXISTS data_quality_mappings (
+                    category TEXT NOT NULL, alias TEXT NOT NULL, mapped_to TEXT NOT NULL,
+                    updated_by TEXT, updated_at TEXT,
+                    PRIMARY KEY (category,alias)
+                )""")
+                cursor.execute("""CREATE TABLE IF NOT EXISTS data_quality_audit (
+                    id BIGSERIAL PRIMARY KEY, category TEXT NOT NULL, alias TEXT,
+                    old_value TEXT, new_value TEXT, operation TEXT NOT NULL,
+                    username TEXT, changed_at TEXT NOT NULL, affected_rows INTEGER DEFAULT 0
+                )""")
+                conn.commit()
+                field_lookup = {'Shape':'shape','Party':'party_name','Buyer':'buyer_name'}
+                category = st.radio("Master",list(field_lookup), horizontal=True, key="dq_master")
+                field = field_lookup[category]
+                stored = read_frame("SELECT alias,mapped_to FROM data_quality_mappings WHERE category=? ORDER BY alias",conn,params=(category,))
+                shape_old = read_frame("SELECT alias,mapped_to FROM shape_mappings",conn) if category=='Shape' else pd.DataFrame(columns=['alias','mapped_to'])
+                alias_map = {str(r['alias']).strip().upper():str(r['mapped_to']).strip().upper() for _,r in shape_old.iterrows()}
+                alias_map.update({str(r['alias']).strip().upper():str(r['mapped_to']).strip().upper() for _,r in stored.iterrows()})
+                values_df = read_frame(
+                    f"SELECT UPPER(TRIM(COALESCE({field},''))) AS raw_name, COUNT(*) AS records "
+                    f"FROM buying_stock GROUP BY UPPER(TRIM(COALESCE({field},''))) ORDER BY records DESC,raw_name", conn)
+                values_df = values_df[values_df['raw_name'].astype(str).str.strip()!=''].copy()
+                values_df['mapped_to'] = values_df['raw_name'].map(alias_map).fillna('')
+                values_df['status'] = values_df['mapped_to'].apply(lambda x:'Mapped' if x else 'Review')
+                total_aliases = len(alias_map)
+                pending_df = values_df[values_df['status']=='Review'].copy()
+                c1,c2,c3 = st.columns(3)
+                c1.metric('Unique names',len(values_df))
+                c2.metric('Approved aliases',total_aliases)
+                c3.metric('Unreviewed names',len(pending_df))
+                st.info('Unreviewed does not necessarily mean incorrect. Valid canonical names may remain as-is; map only confirmed aliases.')
+                q1,q2 = st.columns([2,1])
+                search = q1.text_input('Find name',key='dq_search',placeholder='Search raw name...')
+                only_pending = q2.checkbox('Show unreviewed only',value=True,key='dq_pending')
+                display_df = pending_df if only_pending else values_df
+                if search.strip():
+                    display_df=display_df[display_df['raw_name'].astype(str).str.contains(search.strip(),case=False,regex=False)]
+                st.dataframe(display_df.rename(columns={'raw_name':'Raw name','records':'Stones','mapped_to':'Approved target','status':'Status'}).head(500),use_container_width=True,hide_index=True)
+                st.markdown('#### Add / approve mapping')
+                a,b=st.columns(2)
+                choices=values_df['raw_name'].astype(str).tolist()
+                selected=a.selectbox('Raw name from stock', ['— Choose —']+choices, key='dq_raw_pick')
+                manual_alias=a.text_input('Or enter new alias',key='dq_manual_alias',placeholder='e.g. RBC')
+                target=b.text_input('Standard name (verified)',key='dq_target',placeholder='e.g. ROUND')
+                st.caption('Party and Buyer require identity verification before merging. Suggestions are never auto-approved.')
+                def dq_audit(op,alias,old,new,n=0):
+                    cursor.execute('INSERT INTO data_quality_audit (category,alias,old_value,new_value,operation,username,changed_at,affected_rows) VALUES (?,?,?,?,?,?,?,?)',
+                                   (category,alias,old,new,op,st.session_state.get('username',''),datetime.now().strftime('%Y-%m-%d %H:%M:%S'),n))
+                if st.button('Approve / save alias',key='dq_save'):
+                    raw=(manual_alias or (selected if selected!='— Choose —' else '')).strip().upper()
+                    tgt=target.strip().upper()
+                    if not raw or not tgt:
+                        st.warning('Select/enter an alias and its verified standard name.')
+                    elif raw==tgt:
+                        st.warning('Alias and target are identical. No mapping needed.')
                     else:
-                        cursor.execute(
-                            "INSERT INTO shape_mappings (alias, mapped_to) VALUES (?, ?) "
-                            "ON CONFLICT(alias) DO UPDATE SET mapped_to=excluded.mapped_to",
-                            (alias_val, mapped_val),
-                        )
+                        previous=alias_map.get(raw,'')
+                        cursor.execute('INSERT INTO data_quality_mappings (category,alias,mapped_to,updated_by,updated_at) VALUES (?,?,?,?,?) '
+                                       'ON CONFLICT(category,alias) DO UPDATE SET mapped_to=excluded.mapped_to,updated_by=excluded.updated_by,updated_at=excluded.updated_at',
+                                       (category,raw,tgt,st.session_state.get('username',''),datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                        if category=='Shape':
+                            cursor.execute('INSERT INTO shape_mappings (alias,mapped_to) VALUES (?,?) ON CONFLICT(alias) DO UPDATE SET mapped_to=excluded.mapped_to',(raw,tgt))
+                        dq_audit('SAVE',raw,previous,tgt)
                         conn.commit()
-                        st.success(f"✅ Mapping saved: **{alias_val}** → **{mapped_val}**")
+                        st.success(f'Approved {raw} → {tgt}. New uploads will use this mapping.')
                         st.rerun()
-
-                st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
-
-                # ── Delete mapping ─────────────────────────────────────────────
-                if not maps_df.empty:
-                    st.markdown(_label("🗑  Delete a Mapping", margin_bottom=10), unsafe_allow_html=True)
-                    del1, del2 = st.columns([3, 1])
-                    alias_to_del = del1.selectbox(
-                        "Select alias to delete",
-                        options=maps_df["alias"].tolist(),
-                        key="del_alias_select",
-                        label_visibility="collapsed",
-                    )
-                    del2.markdown('<div style="height:26px;"></div>', unsafe_allow_html=True)
-                    if del2.button("🗑 Delete", key="del_mapping_btn"):
-                        cursor.execute("DELETE FROM shape_mappings WHERE alias=?", (alias_to_del,))
+                st.markdown('#### Bulk approve via Excel / CSV')
+                st.caption('Columns: alias, mapped_to. Review identities before upload. Existing rows are not changed by this operation.')
+                template=pd.DataFrame({'alias':['RD','RBC'] if category=='Shape' else [],'mapped_to':['ROUND','ROUND'] if category=='Shape' else []})
+                st.download_button('Download template (CSV)',data=template.to_csv(index=False).encode('utf-8'),file_name=f'{category.lower()}_mapping_template.csv',mime='text/csv',key='dq_template')
+                csv_file=st.file_uploader('Upload approved mapping CSV',type=['csv'],key=f'dq_csv_{category}')
+                if csv_file is not None:
+                    try:
+                        incoming=pd.read_csv(csv_file,dtype=str).fillna('')
+                        if not {'alias','mapped_to'}.issubset(incoming.columns):
+                            st.error('CSV must contain alias and mapped_to columns.')
+                        else:
+                            incoming=incoming[['alias','mapped_to']].apply(lambda col:col.astype(str).str.strip().str.upper())
+                            incoming=incoming[(incoming['alias']!='')&(incoming['mapped_to']!='')&(incoming['alias']!=incoming['mapped_to'])].drop_duplicates('alias',keep='last')
+                            st.dataframe(incoming.head(200),hide_index=True,use_container_width=True)
+                            confirm_csv=st.checkbox(f'I verified all {len(incoming)} {category.lower()} aliases and targets',key='dq_bulk_confirm')
+                            if st.button('Save approved CSV mappings',disabled=not confirm_csv or incoming.empty,key='dq_bulk_save'):
+                                for row in incoming.itertuples(index=False):
+                                    old=alias_map.get(row.alias,'')
+                                    cursor.execute('INSERT INTO data_quality_mappings (category,alias,mapped_to,updated_by,updated_at) VALUES (?,?,?,?,?) ON CONFLICT(category,alias) DO UPDATE SET mapped_to=excluded.mapped_to,updated_by=excluded.updated_by,updated_at=excluded.updated_at',
+                                                   (category,row.alias,row.mapped_to,st.session_state.get('username',''),datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                                    if category=='Shape':
+                                        cursor.execute('INSERT INTO shape_mappings (alias,mapped_to) VALUES (?,?) ON CONFLICT(alias) DO UPDATE SET mapped_to=excluded.mapped_to',(row.alias,row.mapped_to))
+                                    dq_audit('BULK_SAVE',row.alias,old,row.mapped_to)
+                                conn.commit()
+                                st.success(f'Saved {len(incoming)} mappings')
+                                st.rerun()
+                    except Exception:
+                        st.error('Could not read this CSV. Check encoding and columns.')
+                st.markdown('#### Existing stock — controlled correction')
+                st.caption('Only approved aliases, not canonical/unreviewed values, can be rewritten. This is a permanent database update; take a database backup first.')
+                affected_df=values_df[values_df['mapped_to'].ne('') & (values_df['mapped_to']!=values_df['raw_name'])].copy()
+                affected_count=int(affected_df['records'].sum()) if not affected_df.empty else 0
+                st.write(f'**{affected_count:,} existing stones** across **{len(affected_df)} aliases** would be updated.')
+                if not affected_df.empty:
+                    st.dataframe(affected_df[['raw_name','mapped_to','records']].rename(columns={'raw_name':'Current','mapped_to':'Replace with','records':'Stones'}),hide_index=True,use_container_width=True)
+                    approved_existing=st.checkbox('I have backed up the database and approve these exact existing-stock replacements',key='dq_existing_confirm')
+                    if st.button('Apply approved mappings to existing stock',disabled=not approved_existing,key='dq_existing_apply'):
+                        changed=0
+                        for rec in affected_df.itertuples(index=False):
+                            cursor.execute(f"UPDATE buying_stock SET {field}=? WHERE UPPER(TRIM(COALESCE({field},'')))=?",(rec.mapped_to,rec.raw_name))
+                            n=cursor.rowcount
+                            changed+=n
+                            dq_audit('APPLY_EXISTING',rec.raw_name,rec.raw_name,rec.mapped_to,n)
                         conn.commit()
-                        st.success(f"✅ Mapping '{alias_to_del}' deleted")
+                        st.success(f'Updated {changed:,} stones.')
                         st.rerun()
+                st.markdown('#### Approved mappings & audit')
+                if alias_map:
+                    approved_names=sorted(alias_map)
+                    selected_delete=st.selectbox('Remove approved alias',approved_names,key='dq_delete_alias')
+                    if st.button('Delete selected mapping',key='dq_delete_btn'):
+                        old=alias_map[selected_delete]
+                        cursor.execute('DELETE FROM data_quality_mappings WHERE category=? AND alias=?',(category,selected_delete))
+                        if category=='Shape':
+                            cursor.execute('DELETE FROM shape_mappings WHERE alias=?',(selected_delete,))
+                        dq_audit('DELETE',selected_delete,old,'')
+                        conn.commit()
+                        st.rerun()
+                recent_audit=read_frame('SELECT category,alias,old_value,new_value,operation,username,changed_at,affected_rows FROM data_quality_audit ORDER BY id DESC LIMIT 100',conn)
+                st.dataframe(recent_audit,hide_index=True,use_container_width=True)
 
         # ── CLOSE ─────────────────────────────────────────────────────────────────
         # Connection is released in the outer finally block.
