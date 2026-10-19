@@ -720,12 +720,41 @@ try:
 .module-card.ws-return{--surface:#f2ecff;--edge:#e1d5fb;--tint:#e8ddff;--accent:#7145f6;--wave-color:rgba(163,120,246,.23);}
 .module-card.ws-export{--surface:#fff0f3;--edge:#f7d4df;--tint:#ffdae5;--accent:#eb3b66;--wave-color:rgba(255,123,155,.23);}
 .module-card.ws-admin{--surface:#f0ecff;--edge:#ded8fa;--tint:#e7dfff;--accent:#643cf5;--wave-color:rgba(158,124,255,.23);}
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{position:absolute!important;inset:0!important;z-index:8!important;margin:0!important;padding:0!important;}
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important;opacity:0!important;border:none!important;background:transparent!important;box-shadow:none!important;cursor:pointer!important;transform:none!important;}
+/* A REAL, visible, accessible Streamlit navigation button, styled like the reference's quiet text link.
+   It is positioned over the card, but only the link-sized hit area is clickable. */
+[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{
+  position:absolute!important;left:130px!important;bottom:13px!important;width:max-content!important;
+  max-width:calc(100% - 145px)!important;height:auto!important;z-index:8!important;
+  padding:0!important;margin:0!important;inset-block-start:auto!important;inset-inline-end:auto!important;
+}
+[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{
+  position:relative!important;inset:auto!important;width:auto!important;height:auto!important;
+  min-width:0!important;min-height:26px!important;padding:3px 0!important;margin:0!important;
+  opacity:1!important;border:none!important;background:transparent!important;box-shadow:none!important;
+  border-radius:3px!important;color:var(--accent)!important;cursor:pointer!important;
+  display:inline-flex!important;justify-content:flex-start!important;align-items:center!important;
+  text-align:left!important;white-space:nowrap!important;font-size:13px!important;font-weight:650!important;
+  line-height:1.25!important;letter-spacing:0!important;text-decoration:none!important;
+}
+[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button:hover{
+  color:var(--accent)!important;background:transparent!important;text-decoration:underline!important;
+  text-underline-offset:3px!important;transform:none!important;
+}
+[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button:focus-visible{
+  outline:2px solid var(--accent)!important;outline-offset:3px!important;
+}
+[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button p {font-size:inherit!important;font-weight:inherit!important;color:inherit!important;margin:0!important;line-height:inherit!important;}
+[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button * {pointer-events:none!important;}
+[class*="st-key-workspace_card_"]:has(.ws-upload) {--accent:#156cf4;}
+[class*="st-key-workspace_card_"]:has(.ws-stock) {--accent:#f77920;}
+[class*="st-key-workspace_card_"]:has(.ws-lot) {--accent:#08a474;}
+[class*="st-key-workspace_card_"]:has(.ws-return) {--accent:#7145f6;}
+[class*="st-key-workspace_card_"]:has(.ws-export) {--accent:#eb3b66;}
+[class*="st-key-workspace_card_"]:has(.ws-admin) {--accent:#643cf5;}
 [class*="st-key-workspace_card_"]:has(button:hover) .module-card.ws-v2{box-shadow:0 16px 30px rgba(28,60,110,.11)!important;transform:translateY(-2px)!important;}
 [class*="st-key-workspace_card_"]:has(button:focus-visible) .module-card.ws-v2{outline:3px solid #317cf8!important;outline-offset:2px!important;}
-@media(max-width:1100px){.module-card.ws-v2{padding-left:103px!important;padding-right:35px!important;height:174px!important;min-height:174px!important;}.module-card.ws-v2 .module-icon{left:19px!important;width:62px!important;height:62px!important;font-size:27px!important;}.module-card.ws-v2 .module-link{left:103px!important;}.module-card.ws-v2 .module-decor{right:9px!important;font-size:50px!important;}}
-@media(max-width:760px){.module-card.ws-v2{height:155px!important;min-height:155px!important;padding:20px 32px 15px 82px!important;}.module-card.ws-v2 .module-icon{left:13px!important;top:22px!important;width:52px!important;height:52px!important;font-size:23px!important;}.module-card.ws-v2 .module-title{font-size:16px!important;}.module-card.ws-v2 .module-copy{font-size:12px!important;}.module-card.ws-v2 .module-link{left:82px!important;bottom:14px!important;font-size:12px!important;}}
+@media(max-width:1100px){[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{left:103px!important;max-width:calc(100% - 114px)!important;}.module-card.ws-v2{padding-left:103px!important;padding-right:35px!important;height:174px!important;min-height:174px!important;}.module-card.ws-v2 .module-icon{left:19px!important;width:62px!important;height:62px!important;font-size:27px!important;}.module-card.ws-v2 .module-link{left:103px!important;}.module-card.ws-v2 .module-decor{right:9px!important;font-size:50px!important;}}
+@media(max-width:760px){[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{left:82px!important;bottom:10px!important;max-width:calc(100% - 93px)!important;}[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{font-size:12px!important;}.module-card.ws-v2{height:155px!important;min-height:155px!important;padding:20px 32px 15px 82px!important;}.module-card.ws-v2 .module-icon{left:13px!important;top:22px!important;width:52px!important;height:52px!important;font-size:23px!important;}.module-card.ws-v2 .module-title{font-size:16px!important;}.module-card.ws-v2 .module-copy{font-size:12px!important;}.module-card.ws-v2 .module-link{left:82px!important;bottom:14px!important;font-size:12px!important;}}
 </style><div class="home-dashboard"></div>
 """, unsafe_allow_html=True)
         st.markdown(
@@ -799,10 +828,10 @@ try:
                             f'<div class="module-icon"><span class="glyph">{icon}</span></div>'
                             f'<div class="module-decor" aria-hidden="true">{decor}</div>'
                             f'<p class="module-title">{title}</p><p class="module-copy">{description}</p>'
-                            f'<span class="module-link">Open Module →</span></div>',
+                            f'</div>',
                             unsafe_allow_html=True,
                         )
-                        if st.button(f"Open {title}", key=f"nav_card_{key}", use_container_width=True):
+                        if st.button("Open Module →", key=f"nav_card_{key}"):
                             st.session_state["page"] = key
                             st.rerun()
             # Explicit spacing between workspace rows. Streamlit does not
