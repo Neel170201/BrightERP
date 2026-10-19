@@ -755,38 +755,6 @@ try:
 [class*="st-key-workspace_card_"]:has(button:focus-visible) .module-card.ws-v2{outline:3px solid #317cf8!important;outline-offset:2px!important;}
 @media(max-width:1100px){[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{left:103px!important;max-width:calc(100% - 114px)!important;}.module-card.ws-v2{padding-left:103px!important;padding-right:35px!important;height:174px!important;min-height:174px!important;}.module-card.ws-v2 .module-icon{left:19px!important;width:62px!important;height:62px!important;font-size:27px!important;}.module-card.ws-v2 .module-link{left:103px!important;}.module-card.ws-v2 .module-decor{right:9px!important;font-size:50px!important;}}
 @media(max-width:760px){[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{left:82px!important;bottom:10px!important;max-width:calc(100% - 93px)!important;}[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{font-size:12px!important;}.module-card.ws-v2{height:155px!important;min-height:155px!important;padding:20px 32px 15px 82px!important;}.module-card.ws-v2 .module-icon{left:13px!important;top:22px!important;width:52px!important;height:52px!important;font-size:23px!important;}.module-card.ws-v2 .module-title{font-size:16px!important;}.module-card.ws-v2 .module-copy{font-size:12px!important;}.module-card.ws-v2 .module-link{left:82px!important;bottom:14px!important;font-size:12px!important;}}
-/* Reference circular action: one real Streamlit button per existing module. */
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{
-  position:absolute!important;left:auto!important;right:24px!important;bottom:22px!important;
-  width:46px!important;height:46px!important;max-width:none!important;z-index:12!important;
-  margin:0!important;padding:0!important;
-}
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{
-  display:flex!important;align-items:center!important;justify-content:center!important;
-  box-sizing:border-box!important;width:46px!important;height:46px!important;
-  min-width:46px!important;min-height:46px!important;max-width:46px!important;
-  padding:0!important;margin:0!important;border:none!important;border-radius:50%!important;
-  color:#fff!important;background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 78%,white),var(--accent))!important;
-  box-shadow:0 5px 13px color-mix(in srgb,var(--accent) 27%,transparent),inset 0 1px 2px rgba(255,255,255,.25)!important;
-  text-align:center!important;line-height:1!important;transition:transform .18s ease,box-shadow .18s ease!important;
-}
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button p{
-  color:#fff!important;font-family:Arial,sans-serif!important;font-size:27px!important;
-  font-weight:400!important;line-height:1!important;display:block!important;letter-spacing:0!important;
-  margin:-3px 0 0!important;
-}
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button:hover{
-  color:#fff!important;text-decoration:none!important;
-  background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 70%,white),var(--accent))!important;
-  transform:translateY(-2px)!important;
-  box-shadow:0 8px 17px color-mix(in srgb,var(--accent) 36%,transparent)!important;
-}
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button:focus-visible{outline:3px solid var(--accent)!important;outline-offset:3px!important;}
-@media(max-width:760px){
-  [class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{left:auto!important;right:14px!important;bottom:16px!important;width:40px!important;height:40px!important;max-width:none!important;}
-  [class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;}
-  [class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button p{font-size:24px!important;}
-}
 </style><div class="home-dashboard"></div>
 """, unsafe_allow_html=True)
         st.markdown(
@@ -863,7 +831,7 @@ try:
                             f'</div>',
                             unsafe_allow_html=True,
                         )
-                        if st.button("→", key=f"nav_card_{key}", help=f"Open {title}"):
+                        if st.button("Open Module →", key=f"nav_card_{key}"):
                             st.session_state["page"] = key
                             st.rerun()
             # Explicit spacing between workspace rows. Streamlit does not
