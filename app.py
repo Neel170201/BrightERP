@@ -593,21 +593,23 @@ try:
 .hero h1 {font-size:32px;font-weight:650;}
 .home-date {color:#d5dce4;font-size:12px;margin-top:10px;}
 .home-diamond {position:absolute;right:12%;top:16px;width:110px;height:90px;color:#c89570;opacity:.9;}
-.home-summary {position:relative;box-sizing:border-box;min-height:102px;padding:11px 12px 10px;background:#fff;border:1px solid #dce5ed;border-radius:13px;box-shadow:0 4px 14px rgba(16,40,66,.04);overflow:hidden;transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;--accent:#c88936;--icon-bg:#fbf0e3;--icon-color:#c27a2d;--corner-bg:#f7efe5;}
-.home-summary::after {content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);}
-.home-summary:hover {transform:translateY(-1px);box-shadow:0 8px 18px rgba(16,40,66,.08);border-color:#cfd9e4;}
-.home-summary.amber {--accent:#dd9b43;--icon-bg:#fbf0e3;--icon-color:#c27a2d;--corner-bg:#f8f0e7;}
-.home-summary.blue {--accent:#3a87ff;--icon-bg:#e8f1ff;--icon-color:#2d73db;--corner-bg:#eff5ff;}
-.home-summary.green {--accent:#28c76f;--icon-bg:#e9f8ef;--icon-color:#1ea85b;--corner-bg:#effaf4;}
-.home-summary.purple {--accent:#8e62f5;--icon-bg:#f1ebff;--icon-color:#7c4fe3;--corner-bg:#f5f0ff;}
-.home-summary.red {--accent:#ff6b6b;--icon-bg:#ffecee;--icon-color:#e05555;--corner-bg:#fff1f2;}
-.home-summary.sky {--accent:#3b82f6;--icon-bg:#eaf2ff;--icon-color:#3a71ca;--corner-bg:#eff4ff;}
-.home-summary-head {display:flex;align-items:center;gap:9px;min-width:0;margin-bottom:12px;position:relative;z-index:1;}
-.home-summary-icon {display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;font-size:16px;font-weight:700;color:var(--icon-color);background:var(--icon-bg);flex:none;}
-.home-summary-label {font-size:10px;color:#6f8198;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.home-summary-corner {margin-left:auto;width:92px;height:42px;background:var(--corner-bg);border-radius:0 11px 0 24px;flex:none;opacity:.98;}
-.home-summary-value {font-size:clamp(16px,1.52vw,20px);font-weight:800;color:#142c4b;letter-spacing:-.04em;line-height:1.12;position:relative;z-index:1;overflow-wrap:anywhere;}
-.home-summary-note {font-size:10px;color:#8b98aa;margin-top:6px;line-height:1.25;position:relative;z-index:1;}
+/* The original six inventory KPI cards: gradient design only. */
+.home-summary {position:relative;isolation:isolate;box-sizing:border-box;min-height:122px;padding:17px 17px 15px;color:#fff;background:linear-gradient(115deg,#317bf5,#67a6fc);border:0;border-radius:12px;box-shadow:0 7px 20px rgba(29,73,143,.13);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}
+.home-summary::before {content:"";position:absolute;z-index:0;width:148px;height:148px;right:-61px;bottom:-81px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none;}
+.home-summary::after {content:"";position:absolute;z-index:0;width:86px;height:86px;right:-9px;top:-34px;border-radius:50%;background:rgba(255,255,255,.09);pointer-events:none;}
+.home-summary:hover {transform:translateY(-2px);box-shadow:0 11px 26px rgba(29,73,143,.2);}
+.home-summary.amber {background:linear-gradient(115deg,#337af3,#6ba8fb);}
+.home-summary.blue {background:linear-gradient(115deg,#f47f4d,#ffb166);}
+.home-summary.green {background:linear-gradient(115deg,#27b9bc,#6ad4d0);}
+.home-summary.purple {background:linear-gradient(115deg,#6159ea,#8d8df8);}
+.home-summary.red {background:linear-gradient(115deg,#ee6880,#ffa0a9);}
+.home-summary.sky {background:linear-gradient(115deg,#5576dc,#83a5fa);}
+.home-summary-head {position:relative;z-index:1;display:flex;align-items:center;min-width:0;margin-bottom:13px;}
+.home-summary-label {font-size:11px;line-height:1.35;font-weight:500;color:rgba(255,255,255,.92);white-space:normal;overflow-wrap:anywhere;padding-right:44px;}
+.home-summary-icon {position:absolute;z-index:0;right:0;top:8px;display:flex;justify-content:center;align-items:center;width:66px;height:66px;font-size:51px;line-height:1;font-weight:750;color:rgba(255,255,255,.35);transform:rotate(-13deg);pointer-events:none;text-shadow:0 2px 9px rgba(255,255,255,.08);}
+.home-summary-corner {display:none;}
+.home-summary-value {position:relative;z-index:1;color:#fff;font-size:clamp(17px,1.40vw,23px);font-weight:800;letter-spacing:-.035em;line-height:1.16;overflow-wrap:anywhere;padding-right:4px;font-variant-numeric:tabular-nums;}
+.home-summary-note {position:relative;z-index:1;margin-top:8px;font-size:10px;line-height:1.25;color:rgba(255,255,255,.88);}
 [class*="st-key-workspace_card_"] {background-color:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;box-shadow:none!important;}
 [class*="st-key-workspace_card_"]:hover {background-color:#ffffff!important;background-image:none!important;border-color:#cf9b5b!important;box-shadow:0 10px 28px rgba(16,40,66,.10)!important;}
 .home-section {font-size:23px;font-weight:700;color:#102842;margin:18px 0 10px;}
@@ -625,12 +627,11 @@ try:
 @media(max-width:760px) {
 [data-testid="stHorizontalBlock"]:has(.home-summary) {flex-wrap:wrap;}
 [data-testid="stHorizontalBlock"]:has(.home-summary)>[data-testid="stColumn"] {width:calc(50% - 8px)!important;flex:1 1 calc(50% - 8px)!important;min-width:0;}
-.home-summary {padding:10px 9px 9px;min-height:96px;}
-.home-summary-head {gap:7px;margin-bottom:10px;}
-.home-summary-icon {width:27px;height:27px;font-size:14px;}
-.home-summary-label {font-size:9px;}
-.home-summary-corner {width:62px;height:30px;border-radius:0 10px 0 18px;}
-.home-summary-note {font-size:9px;margin-top:5px;}
+.home-summary {padding:14px 12px;min-height:110px;}
+.home-summary-head {margin-bottom:10px;}
+.home-summary-icon {width:48px;height:48px;font-size:39px;right:-2px;top:15px;}
+.home-summary-label {font-size:10px;padding-right:30px;}
+.home-summary-note {font-size:9px;margin-top:6px;}
 .home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:18px;}}
 
 .premium-hero {
@@ -693,7 +694,8 @@ try:
                     label, value, note, icon, tone = item
                     column.markdown(
                         f'<div class="home-summary {tone}">'
-                        f'<div class="home-summary-head"><span class="home-summary-icon">{icon}</span><div class="home-summary-label">{label}</div><div class="home-summary-corner"></div></div>'
+                        f'<div class="home-summary-head"><div class="home-summary-label">{label}</div></div>'
+                        f'<span class="home-summary-icon" aria-hidden="true">{icon}</span>'
                         f'<div class="home-summary-value">{value}</div>'
                         f'<div class="home-summary-note">{note}</div></div>',
                         unsafe_allow_html=True,
