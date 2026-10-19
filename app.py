@@ -557,19 +557,21 @@ try:
 .hero h1 {font-size:32px;font-weight:650;}
 .home-date {color:#d5dce4;font-size:12px;margin-top:10px;}
 .home-diamond {position:absolute;right:12%;top:16px;width:110px;height:90px;color:#c89570;opacity:.9;}
-.home-summary {position:relative;display:flex;align-items:center;gap:11px;box-sizing:border-box;min-height:98px;padding:13px 12px;background:#fff;border:1px solid #dce5ed;border-radius:13px;box-shadow:0 4px 13px rgba(16,40,66,.035);overflow:hidden;transition:box-shadow .18s ease,border-color .18s ease;--accent:#087f8c;--icon-bg:#e7f4f5;--icon-color:#087f8c;}
-.home-summary::before {display:none;}
+.home-summary {position:relative;box-sizing:border-box;min-height:102px;padding:11px 12px 10px;background:#fff;border:1px solid #dce5ed;border-radius:13px;box-shadow:0 4px 14px rgba(16,40,66,.04);overflow:hidden;transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;--accent:#c88936;--icon-bg:#fbf0e3;--icon-color:#c27a2d;--corner-bg:#f7efe5;}
 .home-summary::after {content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);}
-.home-summary:hover {box-shadow:0 7px 19px rgba(16,40,66,.075);border-color:#ccd9e4;}
-.home-summary.copper {--accent:#c47b37;--icon-bg:#f8eee4;--icon-color:#b36a29;}
-.home-summary.teal {--accent:#14939a;--icon-bg:#e5f4f5;--icon-color:#148891;}
-.home-summary.navy {--accent:#102842;--icon-bg:#eaf0f7;--icon-color:#183b5c;}
-.home-summary-top {position:relative;flex:none;align-self:center;}
-.home-summary-icon {display:flex;align-items:center;justify-content:center;width:33px;height:33px;border-radius:50%;font-size:17px;color:var(--icon-color);background:var(--icon-bg);}
-.home-summary-body {min-width:0;flex:1;}
-.home-summary-label {font-size:11px;color:#66778f;margin-bottom:5px;font-weight:500;}
-.home-summary-value {font-size:clamp(16px,1.4vw,21px);font-weight:800;color:#102842;letter-spacing:-.035em;line-height:1.2;overflow-wrap:anywhere;}
-.home-summary-note {font-size:10px;color:#8793a4;margin-top:6px;line-height:1.3;}
+.home-summary:hover {transform:translateY(-1px);box-shadow:0 8px 18px rgba(16,40,66,.08);border-color:#cfd9e4;}
+.home-summary.amber {--accent:#dd9b43;--icon-bg:#fbf0e3;--icon-color:#c27a2d;--corner-bg:#f8f0e7;}
+.home-summary.blue {--accent:#3a87ff;--icon-bg:#e8f1ff;--icon-color:#2d73db;--corner-bg:#eff5ff;}
+.home-summary.green {--accent:#28c76f;--icon-bg:#e9f8ef;--icon-color:#1ea85b;--corner-bg:#effaf4;}
+.home-summary.purple {--accent:#8e62f5;--icon-bg:#f1ebff;--icon-color:#7c4fe3;--corner-bg:#f5f0ff;}
+.home-summary.red {--accent:#ff6b6b;--icon-bg:#ffecee;--icon-color:#e05555;--corner-bg:#fff1f2;}
+.home-summary.sky {--accent:#3b82f6;--icon-bg:#eaf2ff;--icon-color:#3a71ca;--corner-bg:#eff4ff;}
+.home-summary-head {display:flex;align-items:center;gap:9px;min-width:0;margin-bottom:12px;position:relative;z-index:1;}
+.home-summary-icon {display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;font-size:16px;font-weight:700;color:var(--icon-color);background:var(--icon-bg);flex:none;}
+.home-summary-label {font-size:10px;color:#6f8198;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.home-summary-corner {margin-left:auto;width:92px;height:42px;background:var(--corner-bg);border-radius:0 11px 0 24px;flex:none;opacity:.98;}
+.home-summary-value {font-size:clamp(16px,1.52vw,20px);font-weight:800;color:#142c4b;letter-spacing:-.04em;line-height:1.12;position:relative;z-index:1;overflow-wrap:anywhere;}
+.home-summary-note {font-size:10px;color:#8b98aa;margin-top:6px;line-height:1.25;position:relative;z-index:1;}
 [class*="st-key-workspace_card_"] {background-color:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;box-shadow:none!important;}
 [class*="st-key-workspace_card_"]:hover {background-color:#ffffff!important;background-image:none!important;border-color:#cf9b5b!important;box-shadow:0 10px 28px rgba(16,40,66,.10)!important;}
 .home-section {font-size:23px;font-weight:700;color:#102842;margin:18px 0 10px;}
@@ -587,11 +589,13 @@ try:
 @media(max-width:760px) {
 [data-testid="stHorizontalBlock"]:has(.home-summary) {flex-wrap:wrap;}
 [data-testid="stHorizontalBlock"]:has(.home-summary)>[data-testid="stColumn"] {width:calc(50% - 8px)!important;flex:1 1 calc(50% - 8px)!important;min-width:0;}
-.home-summary {padding:11px 9px;gap:8px;min-height:93px;}
-.home-summary-icon {width:29px;height:29px;font-size:15px;}
-.home-summary-label {font-size:10px;}
-.home-summary-note {font-size:10px;margin-top:5px;}
-.home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:21px;}}
+.home-summary {padding:10px 9px 9px;min-height:96px;}
+.home-summary-head {gap:7px;margin-bottom:10px;}
+.home-summary-icon {width:27px;height:27px;font-size:14px;}
+.home-summary-label {font-size:9px;}
+.home-summary-corner {width:62px;height:30px;border-radius:0 10px 0 18px;}
+.home-summary-note {font-size:9px;margin-top:5px;}
+.home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:18px;}}
 
 .premium-hero {
   position:relative; isolation:isolate; background:linear-gradient(105deg,#08203a 0%,#062345 55%,#0b3466 100%)!important;
@@ -641,23 +645,21 @@ try:
             )
             stones, carats, usd, inr, lot_stones, pending = cursor.fetchone()
             summaries = [
-                ("Total stones", f"{stones:,}", "In buying stock", "◇", "copper"),
-                ("Total carats", f"{float(carats):,.2f} ct", "Total weight", "◈", "teal"),
-                ("Total value · USD", f"${float(usd):,.0f}", "Buying value", "$", "navy"),
-                ("Total value · INR", f"₹{float(inr):,.0f}", "Converted value", "₹", "teal"),
-                ("Lot generated", f"{lot_stones:,}", "Stones assigned to lots", "▱", "copper"),
-                ("Not processed", f"{pending:,}", "Stones pending lot", "◷", "navy"),
+                ("Total stones", f"{stones:,}", "In buying stock", "◇", "amber"),
+                ("Total carats", f"{float(carats):,.2f} ct", "Total weight", "◈", "blue"),
+                ("Total value · USD", f"${float(usd):,.0f}", "Buying value", "$", "green"),
+                ("Total value · INR", f"₹{float(inr):,.0f}", "Converted value", "₹", "purple"),
+                ("Lot generated", f"{lot_stones:,}", "Stones assigned to lots", "▱", "red"),
+                ("Not processed", f"{pending:,}", "Stones pending lot", "◷", "sky"),
             ]
             for start in range(0, len(summaries), 6):
                 for index, (column, item) in enumerate(zip(st.columns(6), summaries[start:start+6])):
                     label, value, note, icon, tone = item
                     column.markdown(
                         f'<div class="home-summary {tone}">'
-                        f'<div class="home-summary-top"><span class="home-summary-icon">{icon}</span></div>'
-                        f'<div class="home-summary-body">'
-                        f'<div class="home-summary-label">{label}</div>'
+                        f'<div class="home-summary-head"><span class="home-summary-icon">{icon}</span><div class="home-summary-label">{label}</div><div class="home-summary-corner"></div></div>'
                         f'<div class="home-summary-value">{value}</div>'
-                        f'<div class="home-summary-note">{note}</div></div></div>',
+                        f'<div class="home-summary-note">{note}</div></div>',
                         unsafe_allow_html=True,
                     )
         st.markdown('<div class="home-section">Your workspace</div>', unsafe_allow_html=True)
