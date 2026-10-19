@@ -698,6 +698,31 @@ try:
 .premium-hero .home-date {font-size:13px!important;color:#f1f5fc!important;margin-top:13px!important;}
 @media(max-width:920px) {.premium-hero {padding:25px!important;min-height:180px;} .premium-hero-content {max-width:100%;gap:15px;} .premium-hero-logo {width:74px;height:74px;border-radius:17px;} .premium-hero-logo img {width:55px;height:55px;} .premium-hero-title {white-space:normal;font-size:19px;} .premium-hero-copy {padding-left:15px;} .premium-hero:before {opacity:.4;width:65%;}}
 @media(max-width:520px) {.premium-hero {padding:21px 16px!important;} .premium-hero-logo {width:54px;height:54px;} .premium-hero-logo img {width:41px;height:41px;} .premium-hero-title {font-size:15px;} .premium-hero h1 {font-size:15px!important;} .premium-hero p {font-size:12px;} .premium-hero-content {gap:10px;} .premium-hero-copy {padding-left:10px;}}
+
+/* Workspace matched to mockup: actual card owns styling, not Streamlit wrapper */
+[class*="st-key-workspace_card_"]{position:relative!important;padding:0!important;border:none!important;box-shadow:none!important;background:transparent!important;overflow:visible!important;}
+[class*="st-key-workspace_card_"] [data-testid="stVerticalBlock"]{gap:0!important;}
+.module-card.ws-v2{box-sizing:border-box!important;position:relative!important;width:100%!important;height:165px!important;min-height:165px!important;margin:0!important;padding:26px 75px 20px 130px!important;overflow:hidden!important;border:1px solid var(--edge)!important;border-radius:15px!important;background:linear-gradient(115deg,#fff 0%,var(--surface) 100%)!important;box-shadow:0 8px 23px rgba(30,55,95,.055)!important;transform:none!important;}
+.module-card.ws-v2:before{content:""!important;position:absolute!important;left:-15%;right:-5%;bottom:-58px!important;height:92px!important;border-radius:50% 55% 0 0 / 85% 85% 0 0!important;transform:rotate(-3deg)!important;background:var(--wave-color)!important;opacity:1!important;pointer-events:none;z-index:0!important;}
+.module-card.ws-v2:after{content:""!important;position:absolute!important;left:23%;right:-18%;bottom:-70px!important;height:97px!important;border-radius:58% 50% 0 0 / 90% 95% 0 0!important;transform:rotate(5deg)!important;background:var(--wave-color)!important;opacity:.5!important;pointer-events:none;z-index:0!important;}
+.module-card.ws-v2 .module-icon{position:absolute!important;left:28px!important;top:28px!important;margin:0!important;width:73px!important;height:73px!important;border:0!important;border-radius:19px!important;background:var(--tint)!important;color:var(--accent)!important;box-shadow:none!important;font-size:32px!important;display:flex!important;align-items:center!important;justify-content:center!important;z-index:2!important;}
+.module-card.ws-v2 .module-icon:before{display:none!important;}
+.module-card.ws-v2 .module-decor{position:absolute!important;right:22px!important;top:45px!important;color:var(--accent)!important;font-size:74px!important;opacity:.10!important;z-index:1!important;pointer-events:none!important;}
+.module-card.ws-v2 .module-title{position:relative!important;z-index:2!important;font-size:18px!important;font-weight:800!important;color:#102842!important;margin:5px 0 8px!important;line-height:1.2!important;}
+.module-card.ws-v2 .module-copy{position:relative!important;z-index:2!important;font-size:14px!important;line-height:1.42!important;color:#647994!important;max-width:238px!important;margin:0!important;}
+.module-card.ws-v2 .module-link{position:absolute!important;left:130px!important;bottom:18px!important;z-index:3!important;color:var(--accent)!important;font-size:13px!important;font-weight:750!important;}
+.module-card.ws-upload{--surface:#eaf3ff;--edge:#ccdeff;--tint:#dceaff;--accent:#156cf4;--wave-color:rgba(87,150,250,.23);}
+.module-card.ws-stock{--surface:#fff4e7;--edge:#f4dec4;--tint:#ffe9d1;--accent:#f77920;--wave-color:rgba(255,172,91,.24);}
+.module-card.ws-lot{--surface:#eafaF5;--edge:#cceee1;--tint:#d7f5e8;--accent:#08a474;--wave-color:rgba(83,206,159,.23);}
+.module-card.ws-return{--surface:#f2ecff;--edge:#e1d5fb;--tint:#e8ddff;--accent:#7145f6;--wave-color:rgba(163,120,246,.23);}
+.module-card.ws-export{--surface:#fff0f3;--edge:#f7d4df;--tint:#ffdae5;--accent:#eb3b66;--wave-color:rgba(255,123,155,.23);}
+.module-card.ws-admin{--surface:#f0ecff;--edge:#ded8fa;--tint:#e7dfff;--accent:#643cf5;--wave-color:rgba(158,124,255,.23);}
+[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{position:absolute!important;inset:0!important;z-index:8!important;margin:0!important;padding:0!important;}
+[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important;opacity:0!important;border:none!important;background:transparent!important;box-shadow:none!important;cursor:pointer!important;transform:none!important;}
+[class*="st-key-workspace_card_"]:has(button:hover) .module-card.ws-v2{box-shadow:0 16px 30px rgba(28,60,110,.11)!important;transform:translateY(-2px)!important;}
+[class*="st-key-workspace_card_"]:has(button:focus-visible) .module-card.ws-v2{outline:3px solid #317cf8!important;outline-offset:2px!important;}
+@media(max-width:1100px){.module-card.ws-v2{padding-left:103px!important;padding-right:35px!important;height:174px!important;min-height:174px!important;}.module-card.ws-v2 .module-icon{left:19px!important;width:62px!important;height:62px!important;font-size:27px!important;}.module-card.ws-v2 .module-link{left:103px!important;}.module-card.ws-v2 .module-decor{right:9px!important;font-size:50px!important;}}
+@media(max-width:760px){.module-card.ws-v2{height:155px!important;min-height:155px!important;padding:20px 32px 15px 82px!important;}.module-card.ws-v2 .module-icon{left:13px!important;top:22px!important;width:52px!important;height:52px!important;font-size:23px!important;}.module-card.ws-v2 .module-title{font-size:16px!important;}.module-card.ws-v2 .module-copy{font-size:12px!important;}.module-card.ws-v2 .module-link{left:82px!important;bottom:14px!important;font-size:12px!important;}}
 </style><div class="home-dashboard"></div>
 """, unsafe_allow_html=True)
         st.markdown(
@@ -765,15 +790,16 @@ try:
             for column, (key, _, _) in zip(st.columns(3), _nav[start:start+3]):
                 title, description, icon, decor, icon_bg, icon_color, decor_color, wave = details[key]
                 with column:
-                    with st.container(border=True, key=f"workspace_card_{key}"):
+                    with st.container(border=False, key=f"workspace_card_{key}"):
                         st.markdown(
-                            f'<div class="module-card ws-{key}" style="--icon-bg:{icon_bg};--icon-color:{icon_color};--decor-color:{decor_color};--wave:{wave};">'
+                            f'<div class="module-card ws-v2 ws-{key}">'
                             f'<div class="module-icon"><span class="glyph">{icon}</span></div>'
                             f'<div class="module-decor" aria-hidden="true">{decor}</div>'
-                            f'<p class="module-title">{title}</p><p class="module-copy">{description}</p></div>',
+                            f'<p class="module-title">{title}</p><p class="module-copy">{description}</p>'
+                            f'<span class="module-link">Open Module →</span></div>',
                             unsafe_allow_html=True,
                         )
-                        if st.button("Open Module  →", key=f"nav_card_{key}"):
+                        if st.button(f"Open {title}", key=f"nav_card_{key}", use_container_width=True):
                             st.session_state["page"] = key
                             st.rerun()
         if not is_video:
