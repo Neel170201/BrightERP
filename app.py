@@ -131,6 +131,43 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
   [class*="st-key-workspace_card_"]:hover,[class*="st-key-nav_card_"] button:hover {transform:none!important;}
 }
 @media(prefers-reduced-motion:reduce) {* {transition:none!important;}}
+/* Global soft luxury background across all authenticated ERP pages. */
+[data-testid="stAppViewContainer"]:not(:has(.bt-login-shell)) {
+  background:
+    radial-gradient(ellipse 38% 34% at 3% 10%, rgba(174,190,255,.37), transparent 84%),
+    radial-gradient(ellipse 39% 35% at 98% 13%, rgba(240,204,184,.24), transparent 82%),
+    radial-gradient(ellipse 40% 37% at 100% 58%, rgba(177,201,254,.27), transparent 87%),
+    radial-gradient(ellipse 45% 31% at 4% 93%, rgba(181,209,248,.28), transparent 88%),
+    linear-gradient(135deg,#fafcff 0%,#f1f6fd 48%,#f8fbff 100%) !important;
+}
+[data-testid="stAppViewContainer"]:not(:has(.bt-login-shell))::before {
+  display:block !important;
+  content:"";
+  position:fixed;
+  inset:0;
+  opacity:.42;
+  pointer-events:none;
+  z-index:0;
+  background-image:
+    radial-gradient(circle,rgba(255,255,255,.90) 1.35px,transparent 1.9px),
+    radial-gradient(circle,rgba(171,190,233,.33) 1.1px,transparent 1.6px);
+  background-size:12px 12px,14px 14px;
+  background-position:16px 132px,calc(100% - 168px) 68%;
+  -webkit-mask-image:
+    radial-gradient(ellipse 11% 23% at 1% 26%,black,transparent 98%),
+    radial-gradient(ellipse 12% 24% at 100% 47%,black,transparent 98%),
+    radial-gradient(ellipse 13% 21% at 1% 88%,black,transparent 98%);
+  mask-image:
+    radial-gradient(ellipse 11% 23% at 1% 26%,black,transparent 98%),
+    radial-gradient(ellipse 12% 24% at 100% 47%,black,transparent 98%),
+    radial-gradient(ellipse 13% 21% at 1% 88%,black,transparent 98%);
+  mask-composite:add;
+}
+@media(max-width:760px) {
+  [data-testid="stAppViewContainer"]:not(:has(.bt-login-shell))::before {opacity:.22;}
+}
+
+
 </style>
 """.replace("__COMPANY_LOGO__", COMPANY_LOGO_URI), unsafe_allow_html=True)
 
@@ -550,7 +587,6 @@ try:
     if st.session_state["page"] == "home":
         st.markdown("""
 <style>
-[data-testid="stAppViewContainer"]:has(.home-dashboard)::before {display:none;}
 .home-dashboard {display:none;}
 .hero {background:linear-gradient(115deg,#102842,#183b54);padding:20px 26px;border-radius:14px;margin-bottom:22px;}
 .hero:after {display:none;}
@@ -1715,7 +1751,7 @@ try:
     if not is_video:
         if tab4:
             with st.container(key="returns_page"):
-                st.markdown('<style>[data-testid="stAppViewContainer"]:has(.st-key-returns_page)::before{display:none!important;} .st-key-return_input_panel,.st-key-return_records_panel,.st-key-return_cancel_panel{background:#fff!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:20px!important;} .st-key-returns_page [data-baseweb="input"],.st-key-returns_page [data-baseweb="base-input"],.st-key-returns_page input,.st-key-returns_page textarea{background:#fff!important;} .st-key-return_section_tabs{border-bottom:1px solid #dce5ed;margin-bottom:10px;} .st-key-return_section_tabs .stButton button{background:transparent!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;box-shadow:none!important;color:#64748b!important;transform:none!important;} .st-key-return_section_tabs .stButton button[kind="primary"]{border-bottom-color:#087f8c!important;color:#087f8c!important;} .st-key-return_section_tabs .stButton button p{color:inherit!important;font-size:14px!important;font-weight:600!important;} .st-key-returns_page [data-testid="stMetric"]{padding:14px 18px!important;box-shadow:none!important;} .st-key-returns_page [data-testid="stMetricValue"]{font-size:25px!important;} </style>', unsafe_allow_html=True)
+                st.markdown('<style>.st-key-return_input_panel,.st-key-return_records_panel,.st-key-return_cancel_panel{background:#fff!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:20px!important;} .st-key-returns_page [data-baseweb="input"],.st-key-returns_page [data-baseweb="base-input"],.st-key-returns_page input,.st-key-returns_page textarea{background:#fff!important;} .st-key-return_section_tabs{border-bottom:1px solid #dce5ed;margin-bottom:10px;} .st-key-return_section_tabs .stButton button{background:transparent!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;box-shadow:none!important;color:#64748b!important;transform:none!important;} .st-key-return_section_tabs .stButton button[kind="primary"]{border-bottom-color:#087f8c!important;color:#087f8c!important;} .st-key-return_section_tabs .stButton button p{color:inherit!important;font-size:14px!important;font-weight:600!important;} .st-key-returns_page [data-testid="stMetric"]{padding:14px 18px!important;box-shadow:none!important;} .st-key-returns_page [data-testid="stMetricValue"]{font-size:25px!important;} </style>', unsafe_allow_html=True)
                 st.subheader("Return Stones")
                 st.caption("Return stones and manage lot cancellations.")
 
@@ -1949,7 +1985,7 @@ try:
     # ══════════════════════════════════════════════════════════════════════════
     if not is_video:
         if tab_export:
-            st.markdown('<style>[data-testid="stAppViewContainer"]:has(.st-key-export_mark_panel)::before{display:none!important;}.st-key-export_mark_panel,.st-key-export_download_panel{background:#fff!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:22px!important;}.st-key-export_mark_panel [data-baseweb="input"],.st-key-export_download_panel [data-baseweb="input"],.st-key-export_mark_panel input,.st-key-export_download_panel input,.st-key-export_download_panel [data-baseweb="select"]>div{background:#fff!important;}.export-file-note{padding:16px;background:#eaf6f7;border-radius:8px;color:#087083;font-size:13px;margin:10px 0;}</style>', unsafe_allow_html=True)
+            st.markdown('<style>.st-key-export_mark_panel,.st-key-export_download_panel{background:#fff!important;border:1px solid #dce5ed!important;border-radius:12px!important;padding:22px!important;}.st-key-export_mark_panel [data-baseweb="input"],.st-key-export_download_panel [data-baseweb="input"],.st-key-export_mark_panel input,.st-key-export_download_panel input,.st-key-export_download_panel [data-baseweb="select"]>div{background:#fff!important;}.export-file-note{padding:16px;background:#eaf6f7;border-radius:8px;color:#087083;font-size:13px;margin:10px 0;}</style>', unsafe_allow_html=True)
             st.subheader("Export Stones")
             st.caption("Mark stones as exported and download your export records.")
             def normalize_cert_exp(cert: str) -> str:
