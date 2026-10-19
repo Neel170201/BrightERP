@@ -101,7 +101,24 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
   from {opacity:.72;transform:translateY(7px)}
   to {opacity:1;transform:translateY(0)}
 }
-.block-container {animation:bt-page-enter .24s cubic-bezier(.2,.7,.25,1) both;}
+/* A unique animation-name per route forces a fresh transition on Streamlit reruns.
+   The former one-time .block-container animation did not restart when changing pages. */
+.bt-route-marker {display:none!important;}
+@keyframes bt-route-home {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes bt-route-upload {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes bt-route-stock {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes bt-route-lot {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes bt-route-return {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes bt-route-export {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes bt-route-admin {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+.block-container:has(.bt-route-marker[data-route="home"]) {animation:bt-route-home .38s cubic-bezier(.19,1,.22,1) both;}
+.block-container:has(.bt-route-marker[data-route="upload"]) {animation:bt-route-upload .38s cubic-bezier(.19,1,.22,1) both;}
+.block-container:has(.bt-route-marker[data-route="stock"]) {animation:bt-route-stock .38s cubic-bezier(.19,1,.22,1) both;}
+.block-container:has(.bt-route-marker[data-route="lot"]) {animation:bt-route-lot .38s cubic-bezier(.19,1,.22,1) both;}
+.block-container:has(.bt-route-marker[data-route="return"]) {animation:bt-route-return .38s cubic-bezier(.19,1,.22,1) both;}
+.block-container:has(.bt-route-marker[data-route="export"]) {animation:bt-route-export .38s cubic-bezier(.19,1,.22,1) both;}
+.block-container:has(.bt-route-marker[data-route="admin"]) {animation:bt-route-admin .38s cubic-bezier(.19,1,.22,1) both;}
+
 /* Highlight actionable module navigation without changing Streamlit routing. */
 [class*="st-key-workspace_card_"] {transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease!important;}
 [class*="st-key-workspace_card_"]:hover {border-color:#cf9b5b!important;box-shadow:0 10px 28px rgba(16,40,66,.10)!important;transform:translateY(-2px);}
@@ -437,6 +454,13 @@ try:
 
     _nav = _visible_nav_items()
     _page_labels = {key: (icon, label) for key, icon, label in _nav}
+
+    # Route marker is updated on every navigation rerun, restarting CSS entrance.
+    # No sleeps, blocking code, or changes to database operations.
+    st.markdown(
+        f'<span class="bt-route-marker" data-route="{escape(st.session_state["page"])}" aria-hidden="true"></span>',
+        unsafe_allow_html=True,
+    )
 
     h_col1, h_col2 = st.columns([5, 1.4])
     with h_col1:
