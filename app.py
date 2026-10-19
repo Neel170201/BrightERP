@@ -557,12 +557,20 @@ try:
 .hero h1 {font-size:32px;font-weight:650;}
 .home-date {color:#d5dce4;font-size:12px;margin-top:10px;}
 .home-diamond {position:absolute;right:12%;top:16px;width:110px;height:90px;color:#c89570;opacity:.9;}
-.home-summary {display:flex;align-items:center;gap:10px;background:white;border:1px solid #dce5ed;border-radius:10px;padding:14px 12px;min-height:88px;box-sizing:border-box;}
-.home-summary-icon {display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border-radius:50%;font-size:18px;color:#087f8c;background:#e7f4f5;}
-.home-summary.copper .home-summary-icon {color:#ad642d;background:#fbf0e7;}
-.home-summary-label {font-size:12px;color:#52647b;margin-bottom:6px;}
-.home-summary-value {font-size:clamp(16px,1.45vw,22px);font-weight:700;color:#102842;letter-spacing:-.03em;overflow-wrap:anywhere;}
-.home-summary-note {font-size:11px;color:#8793a4;margin-top:4px;}
+.home-summary {position:relative;overflow:hidden;background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);border:1px solid #dce5ed;border-radius:16px;padding:16px 16px 15px;min-height:136px;box-sizing:border-box;box-shadow:0 10px 22px rgba(16,40,66,.06);transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;--accent:#087f8c;--icon-bg:#e7f4f5;--icon-color:#087f8c;--corner:#edf7f8;}
+.home-summary::before {content:"";position:absolute;right:12px;top:14px;width:92px;height:42px;background:var(--corner);border-top-right-radius:12px;border-bottom-left-radius:26px;opacity:.88;}
+.home-summary::after {content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);}
+.home-summary:hover {transform:translateY(-2px);box-shadow:0 16px 28px rgba(16,40,66,.10);border-color:#cfd9e4;}
+.home-summary.copper {--accent:#c47b37;--icon-bg:#f8eee4;--icon-color:#b36a29;--corner:#fbf3ea;}
+.home-summary.teal {--accent:#14939a;--icon-bg:#e5f4f5;--icon-color:#148891;--corner:#eef8f9;}
+.home-summary.navy {--accent:#102842;--icon-bg:#eaf0f7;--icon-color:#183b5c;--corner:#f1f5fa;}
+.home-summary-top {position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.home-summary-icon {display:flex;align-items:center;justify-content:center;width:42px;height:42px;flex-shrink:0;border-radius:50%;font-size:22px;color:var(--icon-color);background:var(--icon-bg);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);}
+.home-summary-arrow {font-size:20px;color:#9aa8b8;line-height:1;}
+.home-summary-body {position:relative;z-index:1;}
+.home-summary-label {font-size:12px;color:#66778f;margin-bottom:8px;font-weight:600;letter-spacing:-.01em;}
+.home-summary-value {font-size:clamp(19px,1.6vw,24px);font-weight:800;color:#102842;letter-spacing:-.04em;line-height:1.1;overflow-wrap:anywhere;}
+.home-summary-note {font-size:12px;color:#8793a4;margin-top:10px;line-height:1.35;}
 [class*="st-key-workspace_card_"] {background-color:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;box-shadow:none!important;}
 [class*="st-key-workspace_card_"]:hover {background-color:#ffffff!important;background-image:none!important;border-color:#cf9b5b!important;box-shadow:0 10px 28px rgba(16,40,66,.10)!important;}
 .home-section {font-size:23px;font-weight:700;color:#102842;margin:18px 0 10px;}
@@ -580,10 +588,12 @@ try:
 @media(max-width:760px) {
 [data-testid="stHorizontalBlock"]:has(.home-summary) {flex-wrap:wrap;}
 [data-testid="stHorizontalBlock"]:has(.home-summary)>[data-testid="stColumn"] {width:calc(50% - 8px)!important;flex:1 1 calc(50% - 8px)!important;min-width:0;}
-.home-summary {padding:12px 10px;gap:8px;}
-.home-summary-icon {width:28px;height:28px;font-size:16px;}
-.home-summary-note {font-size:10px;}
-.home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:22px;}}
+.home-summary {padding:14px 12px 13px;min-height:124px;}
+.home-summary::before {width:68px;height:30px;right:10px;top:12px;}
+.home-summary-icon {width:36px;height:36px;font-size:18px;}
+.home-summary-arrow {font-size:17px;}
+.home-summary-note {font-size:11px;margin-top:8px;}
+.home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:21px;}}
 
 .premium-hero {
   position:relative; isolation:isolate; background:linear-gradient(105deg,#08203a 0%,#062345 55%,#0b3466 100%)!important;
@@ -633,19 +643,20 @@ try:
             )
             stones, carats, usd, inr, lot_stones, pending = cursor.fetchone()
             summaries = [
-                ("Total stones", f"{stones:,}", "In buying stock", "◇"),
-                ("Total carats", f"{float(carats):,.2f} ct", "Total weight", "◈"),
-                ("Total value · USD", f"${float(usd):,.0f}", "Buying value", "$"),
-                ("Total value · INR", f"₹{float(inr):,.0f}", "Converted value", "₹"),
-                ("Lot generated", f"{lot_stones:,}", "Stones assigned to lots", "▱"),
-                ("Not processed", f"{pending:,}", "Stones pending lot", "◷"),
+                ("Total stones", f"{stones:,}", "In buying stock", "◇", "copper"),
+                ("Total carats", f"{float(carats):,.2f} ct", "Total weight", "◈", "teal"),
+                ("Total value · USD", f"${float(usd):,.0f}", "Buying value", "$", "navy"),
+                ("Total value · INR", f"₹{float(inr):,.0f}", "Converted value", "₹", "teal"),
+                ("Lot generated", f"{lot_stones:,}", "Stones assigned to lots", "▱", "copper"),
+                ("Not processed", f"{pending:,}", "Stones pending lot", "◷", "navy"),
             ]
             for start in range(0, len(summaries), 6):
                 for index, (column, item) in enumerate(zip(st.columns(6), summaries[start:start+6])):
-                    label, value, note, icon = item
+                    label, value, note, icon, tone = item
                     column.markdown(
-                        f'<div class="home-summary {"copper" if (start+index)%2 == 0 else ""}">'
-                        f'<span class="home-summary-icon">{icon}</span><div>'
+                        f'<div class="home-summary {tone}">'
+                        f'<div class="home-summary-top"><span class="home-summary-icon">{icon}</span><span class="home-summary-arrow">›</span></div>'
+                        f'<div class="home-summary-body">'
                         f'<div class="home-summary-label">{label}</div>'
                         f'<div class="home-summary-value">{value}</div>'
                         f'<div class="home-summary-note">{note}</div></div></div>',
