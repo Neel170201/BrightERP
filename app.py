@@ -699,6 +699,9 @@ try:
 @media(max-width:920px) {.premium-hero {padding:25px!important;min-height:180px;} .premium-hero-content {max-width:100%;gap:15px;} .premium-hero-logo {width:74px;height:74px;border-radius:17px;} .premium-hero-logo img {width:55px;height:55px;} .premium-hero-title {white-space:normal;font-size:19px;} .premium-hero-copy {padding-left:15px;} .premium-hero:before {opacity:.4;width:65%;}}
 @media(max-width:520px) {.premium-hero {padding:21px 16px!important;} .premium-hero-logo {width:54px;height:54px;} .premium-hero-logo img {width:41px;height:41px;} .premium-hero-title {font-size:15px;} .premium-hero h1 {font-size:15px!important;} .premium-hero p {font-size:12px;} .premium-hero-content {gap:10px;} .premium-hero-copy {padding-left:10px;}}
 
+/* Consistent space between the two workspace rows (desktop and mobile). */
+.workspace-row-spacer {height:18px!important;min-height:18px!important;margin:0!important;padding:0!important;}
+[data-testid="stElementContainer"]:has(>.stMarkdown .workspace-row-spacer){margin:0!important;}
 /* Workspace matched to mockup: actual card owns styling, not Streamlit wrapper */
 [class*="st-key-workspace_card_"]{position:relative!important;padding:0!important;border:none!important;box-shadow:none!important;background:transparent!important;overflow:visible!important;}
 [class*="st-key-workspace_card_"] [data-testid="stVerticalBlock"]{gap:0!important;}
@@ -802,6 +805,10 @@ try:
                         if st.button(f"Open {title}", key=f"nav_card_{key}", use_container_width=True):
                             st.session_state["page"] = key
                             st.rerun()
+            # Explicit spacing between workspace rows. Streamlit does not
+            # guarantee a gap for consecutive, independently rendered column rows.
+            if start + 3 < len(_nav):
+                st.markdown('<div class="workspace-row-spacer" aria-hidden="true"></div>', unsafe_allow_html=True)
         if not is_video:
             st.markdown('<div class="home-section">Recent activity</div>', unsafe_allow_html=True)
             # Derived from current records, rather than a separate historical audit log.
