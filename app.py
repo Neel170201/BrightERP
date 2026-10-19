@@ -557,20 +557,19 @@ try:
 .hero h1 {font-size:32px;font-weight:650;}
 .home-date {color:#d5dce4;font-size:12px;margin-top:10px;}
 .home-diamond {position:absolute;right:12%;top:16px;width:110px;height:90px;color:#c89570;opacity:.9;}
-.home-summary {position:relative;overflow:hidden;background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);border:1px solid #dce5ed;border-radius:16px;padding:16px 16px 15px;min-height:136px;box-sizing:border-box;box-shadow:0 10px 22px rgba(16,40,66,.06);transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;--accent:#087f8c;--icon-bg:#e7f4f5;--icon-color:#087f8c;--corner:#edf7f8;}
-.home-summary::before {content:"";position:absolute;right:12px;top:14px;width:92px;height:42px;background:var(--corner);border-top-right-radius:12px;border-bottom-left-radius:26px;opacity:.88;}
-.home-summary::after {content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);}
-.home-summary:hover {transform:translateY(-2px);box-shadow:0 16px 28px rgba(16,40,66,.10);border-color:#cfd9e4;}
-.home-summary.copper {--accent:#c47b37;--icon-bg:#f8eee4;--icon-color:#b36a29;--corner:#fbf3ea;}
-.home-summary.teal {--accent:#14939a;--icon-bg:#e5f4f5;--icon-color:#148891;--corner:#eef8f9;}
-.home-summary.navy {--accent:#102842;--icon-bg:#eaf0f7;--icon-color:#183b5c;--corner:#f1f5fa;}
-.home-summary-top {position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.home-summary-icon {display:flex;align-items:center;justify-content:center;width:42px;height:42px;flex-shrink:0;border-radius:50%;font-size:22px;color:var(--icon-color);background:var(--icon-bg);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);}
-.home-summary-arrow {font-size:20px;color:#9aa8b8;line-height:1;}
-.home-summary-body {position:relative;z-index:1;}
-.home-summary-label {font-size:12px;color:#66778f;margin-bottom:8px;font-weight:600;letter-spacing:-.01em;}
-.home-summary-value {font-size:clamp(19px,1.6vw,24px);font-weight:800;color:#102842;letter-spacing:-.04em;line-height:1.1;overflow-wrap:anywhere;}
-.home-summary-note {font-size:12px;color:#8793a4;margin-top:10px;line-height:1.35;}
+.home-summary {position:relative;display:flex;align-items:center;gap:11px;box-sizing:border-box;min-height:98px;padding:13px 12px;background:#fff;border:1px solid #dce5ed;border-radius:13px;box-shadow:0 4px 13px rgba(16,40,66,.035);overflow:hidden;transition:box-shadow .18s ease,border-color .18s ease;--accent:#087f8c;--icon-bg:#e7f4f5;--icon-color:#087f8c;}
+.home-summary::before {display:none;}
+.home-summary::after {content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);}
+.home-summary:hover {box-shadow:0 7px 19px rgba(16,40,66,.075);border-color:#ccd9e4;}
+.home-summary.copper {--accent:#c47b37;--icon-bg:#f8eee4;--icon-color:#b36a29;}
+.home-summary.teal {--accent:#14939a;--icon-bg:#e5f4f5;--icon-color:#148891;}
+.home-summary.navy {--accent:#102842;--icon-bg:#eaf0f7;--icon-color:#183b5c;}
+.home-summary-top {position:relative;flex:none;align-self:center;}
+.home-summary-icon {display:flex;align-items:center;justify-content:center;width:33px;height:33px;border-radius:50%;font-size:17px;color:var(--icon-color);background:var(--icon-bg);}
+.home-summary-body {min-width:0;flex:1;}
+.home-summary-label {font-size:11px;color:#66778f;margin-bottom:5px;font-weight:500;}
+.home-summary-value {font-size:clamp(16px,1.4vw,21px);font-weight:800;color:#102842;letter-spacing:-.035em;line-height:1.2;overflow-wrap:anywhere;}
+.home-summary-note {font-size:10px;color:#8793a4;margin-top:6px;line-height:1.3;}
 [class*="st-key-workspace_card_"] {background-color:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;box-shadow:none!important;}
 [class*="st-key-workspace_card_"]:hover {background-color:#ffffff!important;background-image:none!important;border-color:#cf9b5b!important;box-shadow:0 10px 28px rgba(16,40,66,.10)!important;}
 .home-section {font-size:23px;font-weight:700;color:#102842;margin:18px 0 10px;}
@@ -588,11 +587,10 @@ try:
 @media(max-width:760px) {
 [data-testid="stHorizontalBlock"]:has(.home-summary) {flex-wrap:wrap;}
 [data-testid="stHorizontalBlock"]:has(.home-summary)>[data-testid="stColumn"] {width:calc(50% - 8px)!important;flex:1 1 calc(50% - 8px)!important;min-width:0;}
-.home-summary {padding:14px 12px 13px;min-height:124px;}
-.home-summary::before {width:68px;height:30px;right:10px;top:12px;}
-.home-summary-icon {width:36px;height:36px;font-size:18px;}
-.home-summary-arrow {font-size:17px;}
-.home-summary-note {font-size:11px;margin-top:8px;}
+.home-summary {padding:11px 9px;gap:8px;min-height:93px;}
+.home-summary-icon {width:29px;height:29px;font-size:15px;}
+.home-summary-label {font-size:10px;}
+.home-summary-note {font-size:10px;margin-top:5px;}
 .home-diamond {display:none;} .hero h1 {font-size:26px;} .home-summary-value {font-size:21px;}}
 
 .premium-hero {
@@ -655,7 +653,7 @@ try:
                     label, value, note, icon, tone = item
                     column.markdown(
                         f'<div class="home-summary {tone}">'
-                        f'<div class="home-summary-top"><span class="home-summary-icon">{icon}</span><span class="home-summary-arrow">›</span></div>'
+                        f'<div class="home-summary-top"><span class="home-summary-icon">{icon}</span></div>'
                         f'<div class="home-summary-body">'
                         f'<div class="home-summary-label">{label}</div>'
                         f'<div class="home-summary-value">{value}</div>'
