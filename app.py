@@ -95,6 +95,24 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 [data-testid="stMetric"] {background:white;border:1px solid var(--border);border-radius:14px;padding:16px;}
 @media(max-width:700px) {.block-container {width:100% !important; padding:1rem !important;} .hero {padding:26px 22px;} .hero h1 {font-size:26px;} .brand-name {font-size:12px;} .module-card {min-height:0;} .kpi-card {min-height:125px;} }
 @media(max-width:700px) {[data-testid="stVerticalBlockBorderWrapper"]:has(.module-card):hover {transform:none;}}
+
+/* ── Smooth navigation: zero artificial wait, 240ms visual entrance ── */
+@keyframes bt-page-enter {
+  from {opacity:.72;transform:translateY(7px)}
+  to {opacity:1;transform:translateY(0)}
+}
+.block-container {animation:bt-page-enter .24s cubic-bezier(.2,.7,.25,1) both;}
+/* Highlight actionable module navigation without changing Streamlit routing. */
+[class*="st-key-workspace_card_"] {transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease!important;}
+[class*="st-key-workspace_card_"]:hover {border-color:#cf9b5b!important;box-shadow:0 10px 28px rgba(16,40,66,.10)!important;transform:translateY(-2px);}
+[class*="st-key-nav_card_"] button {transition:color .18s ease,transform .18s ease!important;}
+[class*="st-key-nav_card_"] button:hover {color:#bb8748!important;transform:translateX(3px);}
+/* Clear, brand-colored focus/active feedback on page navigation. */
+[class*="st-key-back_home_btn"] button:hover {border-color:#c99558!important;color:#94632d!important;}
+@media(prefers-reduced-motion:reduce) {
+  .block-container {animation:none!important;}
+  [class*="st-key-workspace_card_"]:hover,[class*="st-key-nav_card_"] button:hover {transform:none!important;}
+}
 @media(prefers-reduced-motion:reduce) {* {transition:none!important;}}
 </style>
 """.replace("__COMPANY_LOGO__", COMPANY_LOGO_URI), unsafe_allow_html=True)
@@ -471,7 +489,7 @@ try:
 .home-summary-value {font-size:clamp(16px,1.45vw,22px);font-weight:700;color:#102842;letter-spacing:-.03em;overflow-wrap:anywhere;}
 .home-summary-note {font-size:11px;color:#8793a4;margin-top:4px;}
 [class*="st-key-workspace_card_"] {background-color:#ffffff!important;background-image:none!important;border:1px solid #dce5ed!important;border-radius:12px!important;box-shadow:none!important;}
-[class*="st-key-workspace_card_"]:hover {background-color:#ffffff!important;background-image:none!important;}
+[class*="st-key-workspace_card_"]:hover {background-color:#ffffff!important;background-image:none!important;border-color:#cf9b5b!important;box-shadow:0 10px 28px rgba(16,40,66,.10)!important;}
 .home-section {font-size:23px;font-weight:700;color:#102842;margin:18px 0 10px;}
 .module-card {min-height:56px;padding:2px 2px 0 54px;position:relative;}
 .module-icon {position:absolute;left:4px;top:2px;width:36px;height:36px;font-size:18px;border-radius:50%;box-shadow:none;border:0;}
