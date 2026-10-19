@@ -550,7 +550,42 @@ try:
     if st.session_state["page"] == "home":
         st.markdown("""
 <style>
-[data-testid="stAppViewContainer"]:has(.home-dashboard)::before {display:none;}
+/* Home-only soft luxury backdrop: no external assets or loading overhead. */
+[data-testid="stAppViewContainer"]:has(.home-dashboard) {
+  background:
+    radial-gradient(ellipse 38% 34% at 3% 10%, rgba(174,190,255,.37), transparent 84%),
+    radial-gradient(ellipse 39% 35% at 98% 13%, rgba(240,204,184,.24), transparent 82%),
+    radial-gradient(ellipse 40% 37% at 100% 58%, rgba(177,201,254,.27), transparent 87%),
+    radial-gradient(ellipse 45% 31% at 4% 93%, rgba(181,209,248,.28), transparent 88%),
+    linear-gradient(135deg,#fafcff 0%,#f1f6fd 48%,#f8fbff 100%) !important;
+}
+[data-testid="stAppViewContainer"]:has(.home-dashboard)::before {
+  display:block !important;
+  content:"";
+  position:fixed;
+  inset:0;
+  opacity:.42;
+  pointer-events:none;
+  z-index:0;
+  background-image:
+    radial-gradient(circle,rgba(255,255,255,.90) 1.35px,transparent 1.9px),
+    radial-gradient(circle,rgba(171,190,233,.33) 1.1px,transparent 1.6px);
+  background-size:12px 12px,14px 14px;
+  background-position:16px 132px,calc(100% - 168px) 68%;
+  -webkit-mask-image:
+    radial-gradient(ellipse 11% 23% at 1% 26%,black,transparent 98%),
+    radial-gradient(ellipse 12% 24% at 100% 47%,black,transparent 98%),
+    radial-gradient(ellipse 13% 21% at 1% 88%,black,transparent 98%);
+  mask-image:
+    radial-gradient(ellipse 11% 23% at 1% 26%,black,transparent 98%),
+    radial-gradient(ellipse 12% 24% at 100% 47%,black,transparent 98%),
+    radial-gradient(ellipse 13% 21% at 1% 88%,black,transparent 98%);
+  mask-composite:add;
+}
+@media(max-width:760px) {
+  [data-testid="stAppViewContainer"]:has(.home-dashboard)::before {opacity:.22;}
+}
+
 .home-dashboard {display:none;}
 .hero {background:linear-gradient(115deg,#102842,#183b54);padding:20px 26px;border-radius:14px;margin-bottom:22px;}
 .hero:after {display:none;}
