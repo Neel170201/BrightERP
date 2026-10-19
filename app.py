@@ -720,41 +720,48 @@ try:
 .module-card.ws-return{--surface:#f2ecff;--edge:#e1d5fb;--tint:#e8ddff;--accent:#7145f6;--wave-color:rgba(163,120,246,.23);}
 .module-card.ws-export{--surface:#fff0f3;--edge:#f7d4df;--tint:#ffdae5;--accent:#eb3b66;--wave-color:rgba(255,123,155,.23);}
 .module-card.ws-admin{--surface:#f0ecff;--edge:#ded8fa;--tint:#e7dfff;--accent:#643cf5;--wave-color:rgba(158,124,255,.23);}
-/* A REAL, visible, accessible Streamlit navigation button, styled like the reference's quiet text link.
-   It is positioned over the card, but only the link-sized hit area is clickable. */
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{
-  position:absolute!important;left:130px!important;bottom:13px!important;width:max-content!important;
-  max-width:calc(100% - 145px)!important;height:auto!important;z-index:8!important;
-  padding:0!important;margin:0!important;inset-block-start:auto!important;inset-inline-end:auto!important;
+/* SIX WORKSPACE ACTIONS — a visible circle in the card, with the actual
+   Streamlit button as a click target at the same coordinates. Remove the old
+   competing text-link CSS rather than relying on override order. */
+[class*="st-key-workspace_card_"] {--accent:#156cf4;position:relative!important;}
+[class*="st-key-workspace_card_"]:has(.ws-stock){--accent:#f77920;}
+[class*="st-key-workspace_card_"]:has(.ws-lot){--accent:#08a474;}
+[class*="st-key-workspace_card_"]:has(.ws-return){--accent:#7145f6;}
+[class*="st-key-workspace_card_"]:has(.ws-export){--accent:#eb3b66;}
+[class*="st-key-workspace_card_"]:has(.ws-admin){--accent:#643cf5;}
+.module-card.ws-v2 .ws-round-arrow {
+  position:absolute!important;right:23px!important;bottom:22px!important;
+  width:46px!important;height:46px!important;border-radius:50%!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  color:white!important;font-family:Arial,sans-serif!important;font-size:30px!important;font-weight:400!important;
+  line-height:1!important;z-index:8!important;pointer-events:none!important;
+  background:linear-gradient(150deg,color-mix(in srgb,var(--accent) 75%,white),var(--accent))!important;
+  box-shadow:0 6px 15px color-mix(in srgb,var(--accent) 30%,transparent),inset 0 1px rgba(255,255,255,.3)!important;
 }
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{
-  position:relative!important;inset:auto!important;width:auto!important;height:auto!important;
-  min-width:0!important;min-height:26px!important;padding:3px 0!important;margin:0!important;
-  opacity:1!important;border:none!important;background:transparent!important;box-shadow:none!important;
-  border-radius:3px!important;color:var(--accent)!important;cursor:pointer!important;
-  display:inline-flex!important;justify-content:flex-start!important;align-items:center!important;
-  text-align:left!important;white-space:nowrap!important;font-size:13px!important;font-weight:650!important;
-  line-height:1.25!important;letter-spacing:0!important;text-decoration:none!important;
+/* Key-specific style works even if Streamlit changes the button wrapper nesting. */
+[class*="st-key-nav_card_"] {
+  position:absolute!important;right:23px!important;bottom:22px!important;
+  left:auto!important;top:auto!important;
+  width:46px!important;height:46px!important;min-width:46px!important;max-width:46px!important;
+  margin:0!important;padding:0!important;z-index:30!important;
 }
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button:hover{
-  color:var(--accent)!important;background:transparent!important;text-decoration:underline!important;
-  text-underline-offset:3px!important;transform:none!important;
+[class*="st-key-nav_card_"] button {
+  display:block!important;position:relative!important;
+  width:46px!important;height:46px!important;min-width:46px!important;min-height:46px!important;max-width:46px!important;
+  margin:0!important;padding:0!important;border:0!important;border-radius:50%!important;
+  background:transparent!important;box-shadow:none!important;opacity:0!important;cursor:pointer!important;
+  transform:none!important;
 }
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button:focus-visible{
-  outline:2px solid var(--accent)!important;outline-offset:3px!important;
+[class*="st-key-nav_card_"] button:hover {background:transparent!important;box-shadow:none!important;transform:none!important;}
+[class*="st-key-nav_card_"] button:focus-visible {opacity:.23!important;background:#fff!important;outline:3px solid var(--accent)!important;outline-offset:3px!important;}
+[class*="st-key-workspace_card_"]:has([class*="st-key-nav_card_"] button:hover) .ws-round-arrow {transform:translateY(-2px);filter:brightness(1.08);}
+[class*="st-key-workspace_card_"] .module-card.ws-v2 {padding-right:86px!important;}
+@media(max-width:760px) {
+ .module-card.ws-v2 .ws-round-arrow {right:14px!important;bottom:16px!important;width:40px!important;height:40px!important;font-size:26px!important;}
+ [class*="st-key-nav_card_"] {right:14px!important;bottom:16px!important;left:auto!important;top:auto!important;width:40px!important;height:40px!important;min-width:40px!important;max-width:40px!important;}
+ [class*="st-key-nav_card_"] button {width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;}
+ .module-card.ws-v2 {padding-right:66px!important;}
 }
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button p {font-size:inherit!important;font-weight:inherit!important;color:inherit!important;margin:0!important;line-height:inherit!important;}
-[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button * {pointer-events:none!important;}
-[class*="st-key-workspace_card_"]:has(.ws-upload) {--accent:#156cf4;}
-[class*="st-key-workspace_card_"]:has(.ws-stock) {--accent:#f77920;}
-[class*="st-key-workspace_card_"]:has(.ws-lot) {--accent:#08a474;}
-[class*="st-key-workspace_card_"]:has(.ws-return) {--accent:#7145f6;}
-[class*="st-key-workspace_card_"]:has(.ws-export) {--accent:#eb3b66;}
-[class*="st-key-workspace_card_"]:has(.ws-admin) {--accent:#643cf5;}
-[class*="st-key-workspace_card_"]:has(button:hover) .module-card.ws-v2{box-shadow:0 16px 30px rgba(28,60,110,.11)!important;transform:translateY(-2px)!important;}
-[class*="st-key-workspace_card_"]:has(button:focus-visible) .module-card.ws-v2{outline:3px solid #317cf8!important;outline-offset:2px!important;}
-@media(max-width:1100px){[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{left:103px!important;max-width:calc(100% - 114px)!important;}.module-card.ws-v2{padding-left:103px!important;padding-right:35px!important;height:174px!important;min-height:174px!important;}.module-card.ws-v2 .module-icon{left:19px!important;width:62px!important;height:62px!important;font-size:27px!important;}.module-card.ws-v2 .module-link{left:103px!important;}.module-card.ws-v2 .module-decor{right:9px!important;font-size:50px!important;}}
-@media(max-width:760px){[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"]{left:82px!important;bottom:10px!important;max-width:calc(100% - 93px)!important;}[class*="st-key-workspace_card_"] [class*="st-key-nav_card_"] button{font-size:12px!important;}.module-card.ws-v2{height:155px!important;min-height:155px!important;padding:20px 32px 15px 82px!important;}.module-card.ws-v2 .module-icon{left:13px!important;top:22px!important;width:52px!important;height:52px!important;font-size:23px!important;}.module-card.ws-v2 .module-title{font-size:16px!important;}.module-card.ws-v2 .module-copy{font-size:12px!important;}.module-card.ws-v2 .module-link{left:82px!important;bottom:14px!important;font-size:12px!important;}}
 </style><div class="home-dashboard"></div>
 """, unsafe_allow_html=True)
         st.markdown(
@@ -828,10 +835,11 @@ try:
                             f'<div class="module-icon"><span class="glyph">{icon}</span></div>'
                             f'<div class="module-decor" aria-hidden="true">{decor}</div>'
                             f'<p class="module-title">{title}</p><p class="module-copy">{description}</p>'
+                            f'<span class="ws-round-arrow" aria-hidden="true">→</span>'
                             f'</div>',
                             unsafe_allow_html=True,
                         )
-                        if st.button("Open Module →", key=f"nav_card_{key}"):
+                        if st.button("→", key=f"nav_card_{key}", help=f"Open {title}"):
                             st.session_state["page"] = key
                             st.rerun()
             # Explicit spacing between workspace rows. Streamlit does not
