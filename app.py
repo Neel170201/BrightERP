@@ -1436,20 +1436,24 @@ try:
                         if not barcode_svg:
                             barcode_invalid.append(str(record["lot_no"]))
                             continue
+                        rows = (
+                            (label_clean(record["lot_no"]), fmt_cts(record["cts"])),
+                            (label_clean(record["report_no"]), label_clean(record["shape"])),
+                            (label_clean(record["clarity"]), label_clean(record["color"])),
+                        )
+                        grid_rows = "".join(
+                            '<div class="data-row">'
+                            f'<div class="data-cell left-cell"><span>{lv}</span></div>'
+                            f'<div class="data-cell right-cell"><span>{rv}</span></div>'
+                            '</div>' for lv, rv in rows
+                        )
                         for _ in range(int(copies)):
                             labels_html.append(
                                 '<div class="label">'
                                 '<div class="barcode-area">' + barcode_svg + '</div>'
-                                '<div class="details"><div class="left">'
-                                f'<div>{label_clean(record["lot_no"])}</div>'
-                                f'<div>{label_clean(record["report_no"])}</div>'
-                                f'<div>{label_clean(record["clarity"])}</div>'
-                                f'<div>{label_clean(record["party_name"])}</div>'
-                                '</div><div class="right">'
-                                f'<div>{fmt_cts(record["cts"])}</div>'
-                                f'<div>{label_clean(record["shape"])}</div>'
-                                f'<div>{label_clean(record["color"])}</div>'
-                                '<div>&nbsp;</div></div></div></div>'
+                                '<div class="details">' + grid_rows +
+                                '<div class="party-row"><span>' + label_clean(record["party_name"]) + '</span></div>'
+                                '</div></div>'
                             )
                     if barcode_invalid:
                         st.warning("Cannot barcode these lot numbers (only printable ASCII supported): " + ", ".join(barcode_invalid[:20]))
@@ -1458,31 +1462,80 @@ try:
                     *{{box-sizing:border-box}}
                     html,body{{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}}
                     body{{background:#f4f7fa}}
-                    .toolbar{{padding:12px;background:#fff;position:sticky;top:0;z-index:2;border-bottom:1px solid #ddd}}
+                    .toolbar{{padding:10px;background:white;position:sticky;top:0;z-index:2;border-bottom:1px solid #ddd}}
                     button{{background:#087f8c;color:white;border:0;border-radius:7px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer}}
+                    #layout-warning{{display:none;color:#8c2300;font-size:12px;font-weight:600;margin-top:8px;max-width:800px}}
                     .sheet{{display:flex;flex-wrap:wrap;gap:12px;padding:14px;align-items:flex-start}}
                     .label{{display:flex;flex-direction:column;width:50mm;height:25mm;flex:none;border:0.22mm solid #111;border-radius:0.9mm;overflow:hidden;color:#000;background:#fff;font-weight:700;line-height:1}}
-                    .barcode-area{{height:8mm;width:100%;padding:0.65mm 1.8mm 0.35mm;display:flex;align-items:center;justify-content:center}}
+                    .label.bad-fit{{outline:2px solid #d83030;outline-offset:2px}}
+                    .barcode-area{{height:7.2mm;flex:none;width:100%;padding:0.55mm 1.8mm 0.25mm;display:flex;align-items:center;justify-content:center}}
                     .lot-barcode{{display:block;width:100%;height:100%;fill:#000}}
-                    .details{{display:flex;min-height:0;flex:1;border-top:0.2mm solid #111}}
-                    .left{{width:63%;min-width:0;border-right:0.2mm solid #111}}
-                    .right{{width:37%;min-width:0}}
-                    .left>div,.right>div{{height:25%;display:flex;align-items:center;padding:0 0.85mm;white-space:nowrap;overflow:hidden;border-bottom:0.18mm solid #111;font-size:2.85mm}}
-                    .left>div:last-child,.right>div:last-child{{border-bottom:0}}
-                    .left>div:nth-child(2){{font-size:2.65mm}}
-                    .left>div:nth-child(4){{font-size:2.5mm}}
-                    .right>div:nth-child(2){{font-size:2.65mm}}
+                    .details{{display:grid;grid-template-rows:4mm 4.2mm 4.2mm minmax(0,1fr);min-height:0;flex:1;border-top:0.2mm solid #111}}
+                    .data-row{{display:flex;min-width:0;border-bottom:0.18mm solid #111}}
+                    .data-cell{{height:100%;min-width:0;display:flex;align-items:center;padding:0 0.7mm;overflow:hidden;font-size:2.65mm}}
+                    .left-cell{{border-right:0.18mm solid #111}}
+                    .data-cell span{{white-space:nowrap;display:block;flex:none;line-height:1.1}}
+                    .party-row{{display:flex;align-items:center;min-height:0;width:100%;padding:0.1mm 0.75mm;overflow:hidden;font-size:2.5mm}}
+                    .party-row span{{display:block;max-height:100%;overflow-wrap:break-word;white-space:normal;line-height:1.05}}
                     @page{{size:50mm 25mm;margin:0}}
                     @media print{{
                       html,body{{width:50mm!important;height:auto!important;margin:0!important;padding:0!important;background:white!important}}
                       .toolbar{{display:none!important}}
                       .sheet{{display:block!important;padding:0!important;margin:0!important;gap:0!important}}
-                      .label{{display:flex!important;position:relative;width:50mm!important;height:25mm!important;margin:0!important;border-radius:0!important;break-after:page;page-break-after:always;break-inside:avoid}}
+                      .label{{position:relative;width:50mm!important;height:25mm!important;margin:0!important;border-radius:0!important;break-after:page;page-break-after:always;break-inside:avoid}}
                       .label:last-child{{break-after:auto;page-break-after:auto}}
+                      .label.bad-fit{{outline:none}}
                     }}
                     </style></head><body>
-                    <div class="toolbar"><button onclick="window.focus();window.print()">Print on TSC TE244</button></div>
-                    <div class="sheet">{label_markup}</div></body></html>"""
+                    <div class="toolbar"><button onclick="printLabels()">Print on TSC TE244</button>
+                    <div id="layout-warning"></div></div>
+                    <div class="sheet">{label_markup}</div>
+                    <script>
+                    // Independently adjust each row's grid split to its content, keeping font size unchanged.
+                    // Never wrap shape or color. If a pair cannot physically fit, warn instead of clipping silently.
+                    function measureText(span) {{
+                      var r = document.createRange(); r.selectNodeContents(span);
+                      return r.getBoundingClientRect().width;
+                    }}
+                    function autoGrid() {{
+                      var bad = 0;
+                      document.querySelectorAll('.label').forEach(function(label) {{
+                        label.classList.remove('bad-fit');
+                        var overflow = false;
+                        label.querySelectorAll('.data-row').forEach(function(row) {{
+                          var left = row.querySelector('.left-cell');
+                          var right = row.querySelector('.right-cell');
+                          var leftText = measureText(left.querySelector('span'));
+                          var rightText = measureText(right.querySelector('span'));
+                          var ls = getComputedStyle(left), rs = getComputedStyle(right);
+                          var leftRequired = leftText + parseFloat(ls.paddingLeft) + parseFloat(ls.paddingRight) + 1;
+                          var rightRequired = rightText + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight) + 1;
+                          var usable = row.getBoundingClientRect().width;
+                          // Give text its exact required width, distributing spare room equally.
+                          var available = usable - leftRequired - rightRequired;
+                          if (available < -0.4) overflow = true;
+                          var leftWidth = Math.min(usable - 2, Math.max(2, leftRequired + Math.max(0, available) / 2));
+                          left.style.flex = '0 0 ' + leftWidth + 'px';
+                          right.style.flex = '1 1 0';
+                        }});
+                        var party = label.querySelector('.party-row');
+                        var partySpan = party.querySelector('span');
+                        if (partySpan.scrollHeight > party.clientHeight + 1) overflow = true;
+                        if (overflow) {{label.classList.add('bad-fit'); bad++;}}
+                      }});
+                      var warning = document.getElementById('layout-warning');
+                      warning.style.display = bad ? 'block' : 'none';
+                      warning.textContent = bad ? bad + ' label(s) have text too long to fit at the fixed font size on 50 × 25 mm. Red-outlined labels need shorter values or a larger label; printing is blocked to prevent cut-off.' : '';
+                      return bad === 0;
+                    }}
+                    function printLabels() {{
+                      if (!autoGrid()) {{alert('Some labels cannot fit without clipping. See the red-outlined preview and warning.');return;}}
+                      window.focus();window.print();
+                    }}
+                    window.addEventListener('load', autoGrid);
+                    window.addEventListener('resize', autoGrid);
+                    window.addEventListener('beforeprint', autoGrid);
+                    </script></body></html>"""
                     components.html(html, height=360, scrolling=True)
                     st.info("Print dialog: select TSC TE244, paper size 50 × 25 mm, scale 100%, margins None, headers/footers off. Windows printer driver must be installed on your computer. This sends the label via the browser print dialog, not a PDF download.")
 
