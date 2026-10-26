@@ -15,13 +15,14 @@ from datetime import datetime as _datetime, timedelta
 _CODE128_PATTERNS = ['BaBbBb', 'BbBaBb', 'BbBbBa', 'AbAbBc', 'AbAcBb', 'AcAbBb', 'AbBbAc', 'AbBcAb', 'AcBbAb', 'BbAbAc', 'BbAcAb', 'BcAbAb', 'AaBbCb', 'AbBaCb', 'AbBbCa', 'AaCbBb', 'AbCaBb', 'AbCbBa', 'BbCbAa', 'BbAaCb', 'BbAbCa', 'BaCbAb', 'BbCaAb', 'CaBaCa', 'CaAbBb', 'CbAaBb', 'CbAbBa', 'CaBbAb', 'CbBaAb', 'CbBbAa', 'BaBaBc', 'BaBcBa', 'BcBaBa', 'AaAcBc', 'AcAaBc', 'AcAcBa', 'AaBcAc', 'AcBaAc', 'AcBcAa', 'BaAcAc', 'BcAaAc', 'BcAcAa', 'AaBaCc', 'AaBcCa', 'AcBaCa', 'AaCaBc', 'AaCcBa', 'AcCaBa', 'CaCaBa', 'BaAcCa', 'BcAaCa', 'BaCaAc', 'BaCcAa', 'BaCaCa', 'CaAaBc', 'CaAcBa', 'CcAaBa', 'CaBaAc', 'CaBcAa', 'CcBaAa', 'CaDaAa', 'BbAdAa', 'DcAaAa', 'AaAbBd', 'AaAdBb', 'AbAaBd', 'AbAdBa', 'AdAaBb', 'AdAbBa', 'AaBbAd', 'AaBdAb', 'AbBaAd', 'AbBdAa', 'AdBaAb', 'AdBbAa', 'BdAbAa', 'BbAaAd', 'DaCaAa', 'BdAaAb', 'AcDaAa', 'AaAbDb', 'AbAaDb', 'AbAbDa', 'AaDbAb', 'AbDaAb', 'AbDbAa', 'DaAbAb', 'DbAaAb', 'DbAbAa', 'BaBaDa', 'BaDaBa', 'DaBaBa', 'AaAaDc', 'AaAcDa', 'AcAaDa', 'AaDaAc', 'AaDcAa', 'DaAaAc', 'DaAcAa', 'AaCaDa', 'AaDaCa', 'CaAaDa', 'DaAaCa', 'BaAdAb', 'BaAbAd', 'BaAbCb', 'BcCaAaB']
 
 def _lot_code128_svg(raw_lot):
-    """Encode exactly the lot number; no human-readable number under bars."""
-    import re as _re
+    """Code 128 Lot No. only, with 2-dot modules at 203 DPI and quiet zones.
+
+    Reject overly long codes rather than squeezing bars until scanners cannot read.
+    """
     from html import escape as _escape
     lot = str(raw_lot).strip()
     if not lot or any(not (32 <= ord(ch) <= 126) for ch in lot):
         return ""
-    # Numeric lots use Code 128 C for sharp, compact symbols at 50 mm.
     if lot.isascii() and lot.isdigit() and len(lot) % 2 == 0:
         values = [105] + [int(lot[i:i+2]) for i in range(0, len(lot), 2)]
     else:
@@ -34,12 +35,19 @@ def _lot_code128_svg(raw_lot):
         for ch in _CODE128_PATTERNS[code]:
             width = ord(ch.lower()) - ord('a') + 1
             if ch.isupper():
-                bars.append(f'<rect x="{x}" y="0" width="{width}" height="20"/>')
+                bars.append(f'<rect x="{x}" y="0" width="{width}" height="30"/>')
             x += width
-    # 10-module quiet zones each side; vector bars stay precise in print.
+    # Nominal 2 printer dots (roughly 0.25 mm) per narrow module for TSC TE244/203 dpi.
+    # Quiet zone at each end: 10 modules. Never squash a wide barcode to fit.
+    module_mm = 0.25
+    full_modules = x + 20
+    width_mm = full_modules * module_mm
+    if width_mm > 44:  # allow 3 mm of side breathing room on a 50 mm label
+        return ""
     return (f'<svg class="lot-barcode" xmlns="http://www.w3.org/2000/svg" '
-            f'viewBox="-10 0 {x + 20} 20" preserveAspectRatio="none" '
-            f'role="img" aria-label="Barcode encoding lot {_escape(lot, quote=True)}">'
+            f'width="{width_mm:.2f}mm" height="6.7mm" '
+            f'viewBox="-10 0 {full_modules} 30" preserveAspectRatio="none" '
+            f'role="img" aria-label="Code 128 Lot {_escape(lot, quote=True)}">'
             + ''.join(bars) + '</svg>')
 
 class datetime(_datetime):
@@ -1456,7 +1464,7 @@ try:
                                 '</div></div>'
                             )
                     if barcode_invalid:
-                        st.warning("Cannot barcode these lot numbers (only printable ASCII supported): " + ", ".join(barcode_invalid[:20]))
+                        st.warning("Cannot barcode these lot numbers (printable ASCII and a maximum scannable barcode width supported): " + ", ".join(barcode_invalid[:20]))
                     label_markup = "".join(labels_html)
                     html = f"""<!doctype html><html><head><meta charset="UTF-8"><style>
                     *{{box-sizing:border-box}}
@@ -1468,8 +1476,8 @@ try:
                     .sheet{{display:flex;flex-wrap:wrap;gap:12px;padding:14px;align-items:flex-start}}
                     .label{{display:flex;flex-direction:column;width:50mm;height:25mm;flex:none;border:0.22mm solid #111;border-radius:0.9mm;overflow:hidden;color:#000;background:#fff;font-weight:700;line-height:1}}
                     .label.bad-fit{{outline:2px solid #d83030;outline-offset:2px}}
-                    .barcode-area{{height:7.2mm;flex:none;width:100%;padding:0.55mm 1.8mm 0.25mm;display:flex;align-items:center;justify-content:center}}
-                    .lot-barcode{{display:block;width:100%;height:100%;fill:#000}}
+                    .barcode-area{{height:7.2mm;flex:none;width:100%;padding:0.20mm 0 0.15mm;display:flex;align-items:center;justify-content:center}}
+                    .lot-barcode{{display:block;max-width:44mm;flex:none;fill:#000;shape-rendering:crispEdges}}
                     .details{{display:grid;grid-template-rows:4mm 4.2mm 4.2mm minmax(0,1fr);min-height:0;flex:1;border-top:0.2mm solid #111}}
                     .data-row{{display:flex;min-width:0;border-bottom:0.18mm solid #111}}
                     .data-cell{{height:100%;min-width:0;display:flex;align-items:center;padding:0 0.7mm;overflow:hidden;font-size:2.65mm}}
@@ -1537,7 +1545,7 @@ try:
                     window.addEventListener('beforeprint', autoGrid);
                     </script></body></html>"""
                     components.html(html, height=360, scrolling=True)
-                    st.info("Print dialog: select TSC TE244, paper size 50 × 25 mm, scale 100%, margins None, headers/footers off. Windows printer driver must be installed on your computer. This sends the label via the browser print dialog, not a PDF download.")
+                    st.info("Print dialog: select TSC TE244, paper size 50 × 25 mm, scale 100%, margins None, headers/footers off. Disable any Fit-to-page / Shrink-to-fit option. Use darkness/speed settings suitable for Code 128 printing. Windows printer driver must be installed on your computer. This sends the label via the browser print dialog, not a PDF download.")
 
             # ── shared helper ────────────────────────────────────────────────────────
             def normalize_cert(cert: str) -> str:
