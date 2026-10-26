@@ -10,6 +10,38 @@ from html import escape
 from zoneinfo import ZoneInfo
 from datetime import datetime as _datetime, timedelta
 
+
+# Self-contained, scanner-readable Code 128 barcode SVG for thermal labels.
+_CODE128_PATTERNS = ['BaBbBb', 'BbBaBb', 'BbBbBa', 'AbAbBc', 'AbAcBb', 'AcAbBb', 'AbBbAc', 'AbBcAb', 'AcBbAb', 'BbAbAc', 'BbAcAb', 'BcAbAb', 'AaBbCb', 'AbBaCb', 'AbBbCa', 'AaCbBb', 'AbCaBb', 'AbCbBa', 'BbCbAa', 'BbAaCb', 'BbAbCa', 'BaCbAb', 'BbCaAb', 'CaBaCa', 'CaAbBb', 'CbAaBb', 'CbAbBa', 'CaBbAb', 'CbBaAb', 'CbBbAa', 'BaBaBc', 'BaBcBa', 'BcBaBa', 'AaAcBc', 'AcAaBc', 'AcAcBa', 'AaBcAc', 'AcBaAc', 'AcBcAa', 'BaAcAc', 'BcAaAc', 'BcAcAa', 'AaBaCc', 'AaBcCa', 'AcBaCa', 'AaCaBc', 'AaCcBa', 'AcCaBa', 'CaCaBa', 'BaAcCa', 'BcAaCa', 'BaCaAc', 'BaCcAa', 'BaCaCa', 'CaAaBc', 'CaAcBa', 'CcAaBa', 'CaBaAc', 'CaBcAa', 'CcBaAa', 'CaDaAa', 'BbAdAa', 'DcAaAa', 'AaAbBd', 'AaAdBb', 'AbAaBd', 'AbAdBa', 'AdAaBb', 'AdAbBa', 'AaBbAd', 'AaBdAb', 'AbBaAd', 'AbBdAa', 'AdBaAb', 'AdBbAa', 'BdAbAa', 'BbAaAd', 'DaCaAa', 'BdAaAb', 'AcDaAa', 'AaAbDb', 'AbAaDb', 'AbAbDa', 'AaDbAb', 'AbDaAb', 'AbDbAa', 'DaAbAb', 'DbAaAb', 'DbAbAa', 'BaBaDa', 'BaDaBa', 'DaBaBa', 'AaAaDc', 'AaAcDa', 'AcAaDa', 'AaDaAc', 'AaDcAa', 'DaAaAc', 'DaAcAa', 'AaCaDa', 'AaDaCa', 'CaAaDa', 'DaAaCa', 'BaAdAb', 'BaAbAd', 'BaAbCb', 'BcCaAaB']
+
+def _lot_code128_svg(raw_lot):
+    """Encode exactly the lot number; no human-readable number under bars."""
+    import re as _re
+    from html import escape as _escape
+    lot = str(raw_lot).strip()
+    if not lot or any(not (32 <= ord(ch) <= 126) for ch in lot):
+        return ""
+    # Numeric lots use Code 128 C for sharp, compact symbols at 50 mm.
+    if lot.isascii() and lot.isdigit() and len(lot) % 2 == 0:
+        values = [105] + [int(lot[i:i+2]) for i in range(0, len(lot), 2)]
+    else:
+        values = [104] + [ord(ch) - 32 for ch in lot]
+    checksum = (values[0] + sum(i * code for i, code in enumerate(values[1:], 1))) % 103
+    values.extend([checksum, 106])
+    bars = []
+    x = 0
+    for code in values:
+        for ch in _CODE128_PATTERNS[code]:
+            width = ord(ch.lower()) - ord('a') + 1
+            if ch.isupper():
+                bars.append(f'<rect x="{x}" y="0" width="{width}" height="20"/>')
+            x += width
+    # 10-module quiet zones each side; vector bars stay precise in print.
+    return (f'<svg class="lot-barcode" xmlns="http://www.w3.org/2000/svg" '
+            f'viewBox="-10 0 {x + 20} 20" preserveAspectRatio="none" '
+            f'role="img" aria-label="Barcode encoding lot {_escape(lot, quote=True)}">'
+            + ''.join(bars) + '</svg>')
+
 class datetime(_datetime):
     @classmethod
     def now(cls, tz=None):
@@ -1354,9 +1386,9 @@ try:
                 import re
                 import streamlit.components.v1 as components
                 st.subheader("Direct Label Printing")
-                st.caption("Paste lot numbers, preview the diamond details and print directly through your browser to the selected label printer. No PDF is created.")
+                st.caption("Paste lot numbers, preview the diamond details and print directly through your browser to the selected label printer. Barcode encodes only the Lot No.; no PDF is created.")
                 pasted_lots = st.text_area("Paste Lot Numbers (one per line, comma or space separated)", height=125, key="label_lot_numbers", placeholder="123456\n123457\n123458")
-                st.caption("Printer: TSC TE244 · Sticker: 50 × 25 mm · Text only · One sticker per lot")
+                st.caption("Printer: TSC TE244 · Sticker: 50 × 25 mm · Code 128 barcode + text · One sticker per lot")
                 copies = st.number_input("Copies per lot", min_value=1, max_value=100, value=1, key="physical_label_copies")
                 if st.button("Find Labels", key="label_find_button", type="primary"):
                     requested = list(dict.fromkeys(x.strip() for x in re.split(r"[\s,;]+", pasted_lots or "") if x.strip()))
@@ -1398,10 +1430,17 @@ try:
                         except (TypeError, ValueError):
                             return label_clean(value)
                     labels_html = []
+                    barcode_invalid = []
                     for record in label_records:
+                        barcode_svg = _lot_code128_svg(record["lot_no"])
+                        if not barcode_svg:
+                            barcode_invalid.append(str(record["lot_no"]))
+                            continue
                         for _ in range(int(copies)):
                             labels_html.append(
-                                '<div class="label"><div class="left">'
+                                '<div class="label">'
+                                '<div class="barcode-area">' + barcode_svg + '</div>'
+                                '<div class="details"><div class="left">'
                                 f'<div>{label_clean(record["lot_no"])}</div>'
                                 f'<div>{label_clean(record["report_no"])}</div>'
                                 f'<div>{label_clean(record["clarity"])}</div>'
@@ -1410,9 +1449,10 @@ try:
                                 f'<div>{fmt_cts(record["cts"])}</div>'
                                 f'<div>{label_clean(record["shape"])}</div>'
                                 f'<div>{label_clean(record["color"])}</div>'
-                                '<div>&nbsp;</div></div></div>'
+                                '<div>&nbsp;</div></div></div></div>'
                             )
-                    # One label per page, matched to TSC TE244 50 × 25 mm media.
+                    if barcode_invalid:
+                        st.warning("Cannot barcode these lot numbers (only printable ASCII supported): " + ", ".join(barcode_invalid[:20]))
                     label_markup = "".join(labels_html)
                     html = f"""<!doctype html><html><head><meta charset="UTF-8"><style>
                     *{{box-sizing:border-box}}
@@ -1421,7 +1461,10 @@ try:
                     .toolbar{{padding:12px;background:#fff;position:sticky;top:0;z-index:2;border-bottom:1px solid #ddd}}
                     button{{background:#087f8c;color:white;border:0;border-radius:7px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer}}
                     .sheet{{display:flex;flex-wrap:wrap;gap:12px;padding:14px;align-items:flex-start}}
-                    .label{{display:flex;width:50mm;height:25mm;flex:none;border:0.22mm solid #111;border-radius:0.9mm;overflow:hidden;color:#000;background:#fff;font-weight:700;line-height:1}}
+                    .label{{display:flex;flex-direction:column;width:50mm;height:25mm;flex:none;border:0.22mm solid #111;border-radius:0.9mm;overflow:hidden;color:#000;background:#fff;font-weight:700;line-height:1}}
+                    .barcode-area{{height:8mm;width:100%;padding:0.65mm 1.8mm 0.35mm;display:flex;align-items:center;justify-content:center}}
+                    .lot-barcode{{display:block;width:100%;height:100%;fill:#000}}
+                    .details{{display:flex;min-height:0;flex:1;border-top:0.2mm solid #111}}
                     .left{{width:63%;min-width:0;border-right:0.2mm solid #111}}
                     .right{{width:37%;min-width:0}}
                     .left>div,.right>div{{height:25%;display:flex;align-items:center;padding:0 0.85mm;white-space:nowrap;overflow:hidden;border-bottom:0.18mm solid #111;font-size:2.85mm}}
