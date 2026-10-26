@@ -17,7 +17,7 @@ _CODE128_PATTERNS = ['BaBbBb', 'BbBaBb', 'BbBbBa', 'AbAbBc', 'AbAcBb', 'AcAbBb',
 def _lot_code128_svg(raw_lot):
     """Code 128 Lot No. only, with 2-dot modules at 203 DPI and quiet zones.
 
-    Reject overly long codes rather than squeezing bars until scanners cannot read.
+    Prefer 3-dot bars at 203 dpi and preserve quiet zones; never distort modules.
     """
     from html import escape as _escape
     lot = str(raw_lot).strip()
@@ -37,16 +37,18 @@ def _lot_code128_svg(raw_lot):
             if ch.isupper():
                 bars.append(f'<rect x="{x}" y="0" width="{width}" height="30"/>')
             x += width
-    # Nominal 2 printer dots (roughly 0.25 mm) per narrow module for TSC TE244/203 dpi.
-    # Quiet zone at each end: 10 modules. Never squash a wide barcode to fit.
-    module_mm = 0.25
+    # TE244 prints 203 dots/inch. Keep every module an integer number of dots:
+    # 3 dots for short lot numbers (much easier to scan), or 2 for longer ones.
+    # Reserve a >=10-module quiet zone at BOTH ends. Never squeeze/stretch barcode.
     full_modules = x + 20
-    width_mm = full_modules * module_mm
-    if width_mm > 44:  # allow 3 mm of side breathing room on a 50 mm label
-        return ""
+    dpi = 203
+    dots_per_module = next((dots for dots in (3, 2) if full_modules * dots * 25.4 / dpi <= 44), None)
+    if dots_per_module is None:
+        return ""  # Must not print a squashed barcode.
+    width_mm = full_modules * dots_per_module * 25.4 / dpi
     return (f'<svg class="lot-barcode" xmlns="http://www.w3.org/2000/svg" '
-            f'width="{width_mm:.2f}mm" height="6.7mm" '
-            f'viewBox="-10 0 {full_modules} 30" preserveAspectRatio="none" '
+            f'width="{width_mm:.4f}mm" height="8.0mm" '
+            f'viewBox="-10 0 {full_modules} 32" preserveAspectRatio="none" '
             f'role="img" aria-label="Code 128 Lot {_escape(lot, quote=True)}">'
             + ''.join(bars) + '</svg>')
 
@@ -1476,9 +1478,9 @@ try:
                     .sheet{{display:flex;flex-wrap:wrap;gap:12px;padding:14px;align-items:flex-start}}
                     .label{{display:flex;flex-direction:column;width:50mm;height:25mm;flex:none;border:0.22mm solid #111;border-radius:0.9mm;overflow:hidden;color:#000;background:#fff;font-weight:700;line-height:1}}
                     .label.bad-fit{{outline:2px solid #d83030;outline-offset:2px}}
-                    .barcode-area{{height:7.2mm;flex:none;width:100%;padding:0.20mm 0 0.15mm;display:flex;align-items:center;justify-content:center}}
-                    .lot-barcode{{display:block;max-width:44mm;flex:none;fill:#000;shape-rendering:crispEdges}}
-                    .details{{display:grid;grid-template-rows:4mm 4.2mm 4.2mm minmax(0,1fr);min-height:0;flex:1;border-top:0.2mm solid #111}}
+                    .barcode-area{{height:8.5mm;flex:none;width:100%;padding:0.18mm 0 0.18mm;display:flex;align-items:center;justify-content:center}}
+                    .lot-barcode{{display:block;max-width:44mm;max-height:8mm;flex:none;fill:#000;shape-rendering:crispEdges}}
+                    .details{{display:grid;grid-template-rows:3.7mm 3.8mm 3.8mm minmax(0,1fr);min-height:0;flex:1;border-top:0.2mm solid #111}}
                     .data-row{{display:flex;min-width:0;border-bottom:0.18mm solid #111}}
                     .data-cell{{height:100%;min-width:0;display:flex;align-items:center;padding:0 0.7mm;overflow:hidden;font-size:2.65mm}}
                     .left-cell{{border-right:0.18mm solid #111}}
