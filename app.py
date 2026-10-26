@@ -1338,16 +1338,110 @@ try:
 
 """, unsafe_allow_html=True)
 
-            lot_options = [("📂 Excel Upload", "Excel Upload"), ("📋 Input IGI No", "Input IGI No"), ("📊 Master Lot Data", "Master Lot Data")]
+            lot_options = [("📂 Excel Upload", "Excel Upload"), ("📋 Input IGI No", "Input IGI No"), ("📊 Master Lot Data", "Master Lot Data"), ("🏷️ Label Print", "Label Print")]
             if st.session_state.get("lot_section") not in [value for value, _ in lot_options]:
                 st.session_state["lot_section"] = lot_options[0][0]
             with st.container(key="lots_section_tabs"):
-                tab_columns = st.columns([1.3, 1.4, 1.6, 5.7])
+                tab_columns = st.columns([1.3, 1.4, 1.6, 1.4, 4.3])
                 for column, (value, label) in zip(tab_columns, lot_options):
                     if column.button(label, key=f"lots_nav_{label}", type="primary" if st.session_state["lot_section"] == value else "secondary", use_container_width=True):
                         st.session_state["lot_section"] = value
                         st.rerun()
             lot_section = st.session_state["lot_section"]
+
+            # ── SUB-TAB: Direct physical printer labels ──────────────────────────────
+            if lot_section == '🏷️ Label Print':
+                import re
+                import streamlit.components.v1 as components
+                st.subheader("Direct Label Printing")
+                st.caption("Paste lot numbers, preview the diamond details and print directly through your browser to the selected label printer. No PDF is created.")
+                pasted_lots = st.text_area("Paste Lot Numbers (one per line, comma or space separated)", height=125, key="label_lot_numbers", placeholder="123456\n123457\n123458")
+                st.caption("Printer: TSC TE244 · Sticker: 50 × 25 mm · Text only · One sticker per lot")
+                copies = st.number_input("Copies per lot", min_value=1, max_value=100, value=1, key="physical_label_copies")
+                if st.button("Find Labels", key="label_find_button", type="primary"):
+                    requested = list(dict.fromkeys(x.strip() for x in re.split(r"[\s,;]+", pasted_lots or "") if x.strip()))
+                    if not requested:
+                        st.warning("Please paste at least one Lot Number.")
+                        st.session_state.pop("label_records", None)
+                    elif len(requested) > 1000:
+                        st.error("Maximum 1,000 lot numbers per batch.")
+                    else:
+                        # Batch lookup, avoiding an excessively large SQL IN expression.
+                        fetched = []
+                        for offset in range(0, len(requested), 200):
+                            group = requested[offset:offset + 200]
+                            placeholders = ",".join("?" for _ in group)
+                            fetched.extend(read_frame(
+                                f"SELECT lot_no, report_no, cts, shape, clarity, color, party_name "
+                                f"FROM buying_stock WHERE lot_no IN ({placeholders}) AND stock_status != 'RETURN'",
+                                conn, params=group
+                            ).to_dict("records"))
+                        by_lot = {str(r["lot_no"]).strip(): r for r in fetched}
+                        st.session_state["label_records"] = [by_lot[v] for v in requested if v in by_lot]
+                        missing = [v for v in requested if v not in by_lot]
+                        st.session_state["label_missing"] = missing
+                label_records = st.session_state.get("label_records", [])
+                missing = st.session_state.get("label_missing", [])
+                if missing:
+                    st.warning("Lot Numbers not found (or returned): " + ", ".join(missing[:40]) + (" ..." if len(missing) > 40 else ""))
+                if label_records:
+                    st.success(f"{len(label_records)} matching lot(s) ready to print.")
+                    st.dataframe(pd.DataFrame(label_records).rename(columns={
+                        'lot_no':'Lot No', 'report_no':'Certificate', 'cts':'Carat',
+                        'shape':'Shape', 'clarity':'Clarity', 'color':'Color', 'party_name':'Party'
+                    }), use_container_width=True, hide_index=True)
+                    def label_clean(value):
+                        return escape(str(value)) if pd.notna(value) and str(value).strip() else "—"
+                    def fmt_cts(value):
+                        try:
+                            return f"{float(value):g}"
+                        except (TypeError, ValueError):
+                            return label_clean(value)
+                    labels_html = []
+                    for record in label_records:
+                        for _ in range(int(copies)):
+                            labels_html.append(
+                                '<div class="label"><div class="left">'
+                                f'<div>{label_clean(record["lot_no"])}</div>'
+                                f'<div>{label_clean(record["report_no"])}</div>'
+                                f'<div>{label_clean(record["clarity"])}</div>'
+                                f'<div>{label_clean(record["party_name"])}</div>'
+                                '</div><div class="right">'
+                                f'<div>{fmt_cts(record["cts"])}</div>'
+                                f'<div>{label_clean(record["shape"])}</div>'
+                                f'<div>{label_clean(record["color"])}</div>'
+                                '<div>&nbsp;</div></div></div>'
+                            )
+                    # One label per page, matched to TSC TE244 50 × 25 mm media.
+                    label_markup = "".join(labels_html)
+                    html = f"""<!doctype html><html><head><meta charset="UTF-8"><style>
+                    *{{box-sizing:border-box}}
+                    html,body{{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}}
+                    body{{background:#f4f7fa}}
+                    .toolbar{{padding:12px;background:#fff;position:sticky;top:0;z-index:2;border-bottom:1px solid #ddd}}
+                    button{{background:#087f8c;color:white;border:0;border-radius:7px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer}}
+                    .sheet{{display:flex;flex-wrap:wrap;gap:12px;padding:14px;align-items:flex-start}}
+                    .label{{display:flex;width:50mm;height:25mm;flex:none;border:0.22mm solid #111;border-radius:0.9mm;overflow:hidden;color:#000;background:#fff;font-weight:700;line-height:1}}
+                    .left{{width:63%;min-width:0;border-right:0.2mm solid #111}}
+                    .right{{width:37%;min-width:0}}
+                    .left>div,.right>div{{height:25%;display:flex;align-items:center;padding:0 0.85mm;white-space:nowrap;overflow:hidden;border-bottom:0.18mm solid #111;font-size:2.85mm}}
+                    .left>div:last-child,.right>div:last-child{{border-bottom:0}}
+                    .left>div:nth-child(2){{font-size:2.65mm}}
+                    .left>div:nth-child(4){{font-size:2.5mm}}
+                    .right>div:nth-child(2){{font-size:2.65mm}}
+                    @page{{size:50mm 25mm;margin:0}}
+                    @media print{{
+                      html,body{{width:50mm!important;height:auto!important;margin:0!important;padding:0!important;background:white!important}}
+                      .toolbar{{display:none!important}}
+                      .sheet{{display:block!important;padding:0!important;margin:0!important;gap:0!important}}
+                      .label{{display:flex!important;position:relative;width:50mm!important;height:25mm!important;margin:0!important;border-radius:0!important;break-after:page;page-break-after:always;break-inside:avoid}}
+                      .label:last-child{{break-after:auto;page-break-after:auto}}
+                    }}
+                    </style></head><body>
+                    <div class="toolbar"><button onclick="window.focus();window.print()">Print on TSC TE244</button></div>
+                    <div class="sheet">{label_markup}</div></body></html>"""
+                    components.html(html, height=360, scrolling=True)
+                    st.info("Print dialog: select TSC TE244, paper size 50 × 25 mm, scale 100%, margins None, headers/footers off. Windows printer driver must be installed on your computer. This sends the label via the browser print dialog, not a PDF download.")
 
             # ── shared helper ────────────────────────────────────────────────────────
             def normalize_cert(cert: str) -> str:
