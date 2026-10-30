@@ -705,10 +705,10 @@ try:
 .home-date {color:#d5dce4;font-size:12px;margin-top:10px;}
 .home-diamond {position:absolute;right:12%;top:16px;width:110px;height:90px;color:#c89570;opacity:.9;}
 /* The original six inventory KPI cards: gradient design only. */
-.home-summary {position:relative;isolation:isolate;box-sizing:border-box;min-height:122px;padding:17px 17px 15px;color:#fff;background:linear-gradient(115deg,#317bf5,#67a6fc);border:0;border-radius:12px;box-shadow:0 7px 20px rgba(29,73,143,.13);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}
-.home-summary::before {content:"";position:absolute;z-index:0;width:148px;height:148px;right:-61px;bottom:-81px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none;}
-.home-summary::after {content:"";position:absolute;z-index:0;width:86px;height:86px;right:-9px;top:-34px;border-radius:50%;background:rgba(255,255,255,.09);pointer-events:none;}
-.home-summary:hover {transform:translateY(-2px);box-shadow:0 11px 26px rgba(29,73,143,.2);}
+.home-summary {position:relative;isolation:isolate;box-sizing:border-box;min-height:122px;padding:17px 17px 15px;color:#fff;background:linear-gradient(115deg,#317bf5,#67a6fc);border:0;border-radius:14px;box-shadow:0 8px 22px rgba(29,73,143,.16);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;perspective:700px;}
+.home-summary::before {content:"";position:absolute;z-index:0;width:152px;height:152px;right:-63px;bottom:-82px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none;}
+.home-summary::after {content:"";position:absolute;z-index:0;width:90px;height:90px;right:-10px;top:-35px;border-radius:50%;background:rgba(255,255,255,.09);pointer-events:none;}
+.home-summary:hover {transform:translateY(-2px);box-shadow:0 14px 28px rgba(29,73,143,.22);}
 .home-summary.amber {background:linear-gradient(115deg,#337af3,#6ba8fb);}
 .home-summary.blue {background:linear-gradient(115deg,#f47f4d,#ffb166);}
 .home-summary.green {background:linear-gradient(115deg,#27b9bc,#6ad4d0);}
@@ -716,10 +716,13 @@ try:
 .home-summary.red {background:linear-gradient(115deg,#ee6880,#ffa0a9);}
 .home-summary.sky {background:linear-gradient(115deg,#5576dc,#83a5fa);}
 .home-summary-head {position:relative;z-index:1;display:flex;align-items:center;min-width:0;margin-bottom:13px;}
-.home-summary-label {font-size:11px;line-height:1.35;font-weight:500;color:rgba(255,255,255,.92);white-space:normal;overflow-wrap:anywhere;padding-right:44px;}
-.home-summary-icon {position:absolute;z-index:0;right:0;top:8px;display:flex;justify-content:center;align-items:center;width:66px;height:66px;font-size:51px;line-height:1;font-weight:750;color:rgba(255,255,255,.35);transform:rotate(-13deg);pointer-events:none;text-shadow:0 2px 9px rgba(255,255,255,.08);}
+.home-summary-label {font-size:11px;line-height:1.35;font-weight:500;color:rgba(255,255,255,.92);white-space:normal;overflow-wrap:anywhere;padding-right:48px;}
+.home-summary-icon {position:absolute;z-index:0;right:2px;top:7px;display:flex;justify-content:center;align-items:center;width:68px;height:68px;font-size:50px;line-height:1;font-weight:750;color:rgba(255,255,255,.23);transform:rotate(-13deg);pointer-events:none;text-shadow:0 2px 9px rgba(255,255,255,.08);}
 .home-summary-corner {display:none;}
-.home-summary-value {position:relative;z-index:1;color:#fff;font-size:clamp(17px,1.40vw,23px);font-weight:800;letter-spacing:-.035em;line-height:1.16;overflow-wrap:anywhere;padding-right:4px;font-variant-numeric:tabular-nums;}
+.home-summary-value {position:relative;z-index:1;display:inline-block;color:#fff;font-size:clamp(18px,1.5vw,24px);font-weight:900;letter-spacing:-.045em;line-height:1.12;overflow-wrap:anywhere;padding-right:4px;font-variant-numeric:tabular-nums;background:linear-gradient(180deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.96) 32%,rgba(242,248,255,.93) 60%,rgba(226,238,255,.88) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 1px 0 rgba(255,255,255,.18)) drop-shadow(0 3px 0 rgba(0,0,0,.07)) drop-shadow(0 7px 10px rgba(10,21,40,.2));transition:transform .18s ease,filter .18s ease;}
+.home-summary-value::before {content:attr(data-value);position:absolute;left:0;top:0;z-index:-1;color:rgba(18,33,53,.23);-webkit-text-fill-color:rgba(18,33,53,.23);transform:translate(1px,3px) scale(1.01);filter:blur(.2px);pointer-events:none;}
+.home-summary-value::after {content:attr(data-value);position:absolute;left:0;top:0;z-index:-2;color:rgba(255,255,255,.18);-webkit-text-fill-color:rgba(255,255,255,.18);transform:translate(-1px,-1px);pointer-events:none;}
+.home-summary:hover .home-summary-value {transform:translateY(-2px) scale(1.02);filter:drop-shadow(0 1px 0 rgba(255,255,255,.22)) drop-shadow(0 4px 0 rgba(0,0,0,.08)) drop-shadow(0 10px 14px rgba(10,21,40,.25));}
 .home-summary-note {position:relative;z-index:1;margin-top:8px;font-size:10px;line-height:1.25;color:rgba(255,255,255,.88);}
 /* Fit long values without changing the original six KPI gradients or desktop sizing. */
 .home-summary{min-width:0!important;}
@@ -976,7 +979,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                         f'<div class="home-summary {tone}">'
                         f'<div class="home-summary-head"><div class="home-summary-label">{label}</div></div>'
                         f'<span class="home-summary-icon" aria-hidden="true">{icon}</span>'
-                        f'<div class="home-summary-value">{value}</div>'
+                        f'<div class="home-summary-value" data-value="{value}">{value}</div>'
                         f'<div class="home-summary-note">{note}</div></div>',
                         unsafe_allow_html=True,
                     )
