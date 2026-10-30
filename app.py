@@ -882,19 +882,55 @@ try:
 }
 </style><div class="home-dashboard"></div>
 """, unsafe_allow_html=True)
-        st.markdown(
-            '<div class="hero premium-hero">'
-            '<div class="premium-hero-content">'
-            '<div class="premium-hero-logo">'
-            f'<img src="{COMPANY_LOGO_URI}" alt="Bright Trading India LLP logo"></div>'
-            '<div class="premium-hero-copy">'
-            '<div class="premium-hero-title">BRIGHT TRADING INDIA LLP</div>'
-            f'<h1>Welcome back, {escape(str(st.session_state["username"]))}</h1>'
-            '<p>Diamond operations at a glance.</p>'
-            f'<div class="home-date">▦ &nbsp; {datetime.now().strftime("%d %B %Y")}</div>'
-            '</div></div></div>',
-            unsafe_allow_html=True,
-        )
+        # Interactive 3D home welcome card. This is deliberately isolated in an
+        # HTML component so JavaScript runs reliably without changing app state.
+        # The ORIGINAL embedded company logo is reused, never redrawn.
+        _welcome_html = r"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:transparent;font-family:Inter,Arial,sans-serif}
+.stage{width:100%;height:330px;perspective:1100px;padding:5px 7px 15px;touch-action:pan-y}
+.card{position:relative;isolation:isolate;overflow:hidden;height:305px;border-radius:23px;background:linear-gradient(112deg,#08203a 0%,#062345 54%,#123c43 100%);border:1px solid rgba(212,156,82,.45);box-shadow:0 13px 32px rgba(11,43,80,.18);transform-style:preserve-3d;transform:rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .25s;color:#fff}
+.card:hover{box-shadow:0 22px 42px rgba(11,43,80,.26)}
+.grid{position:absolute;inset:0;background-image:linear-gradient(#fffFFF07 1px,transparent 1px),linear-gradient(90deg,#ffffff07 1px,transparent 1px);background-size:35px 35px;mask-image:linear-gradient(90deg,transparent 25%,#000);pointer-events:none}
+.light{position:absolute;inset:0;pointer-events:none;background:radial-gradient(285px circle at var(--mouse-x,75%) var(--mouse-y,46%),rgba(226,169,94,.22),transparent 85%)}
+.copy{position:relative;z-index:3;padding:44px 36px;max-width:65%;transform:translateZ(35px);pointer-events:none}
+.brand{color:#e1ad70;font-weight:800;letter-spacing:.11em;font-size:clamp(13px,1.8vw,18px)}
+h1{margin:25px 0 9px;font-size:clamp(22px,3.2vw,34px);line-height:1.14;letter-spacing:-.04em;font-weight:730;color:#fff}
+h1 .dot{color:#dfaa70}.desc{font-size:clamp(12px,1.3vw,15px);line-height:1.6;color:#c9d7e3;margin:10px 0 0;max-width:420px}.date{font-size:12px;color:#f0d0a6;margin-top:20px;letter-spacing:.025em}
+.avatar-zone{position:absolute;right:7%;top:9%;width:32%;height:84%;display:flex;align-items:center;justify-content:center;transform:translateZ(72px) translate(var(--avatar-x,0px),var(--avatar-y,0px));transition:transform .3s ease;pointer-events:none}
+.halo{position:absolute;width:min(260px,100%);aspect-ratio:1;border:1px solid #d9af7963;border-radius:50%;box-shadow:inset 0 0 42px #d7a46314,0 0 45px #d7a46313}
+.halo:before{content:"";position:absolute;inset:12px;border:1px dashed #d9af794c;border-radius:50%}.halo:after{content:"";position:absolute;inset:-13px;border:1px solid #d9af7923;border-radius:50%}
+.medallion{position:relative;width:72%;max-width:201px;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 33% 23%,#30475e,#13253b 58%,#091425);border:2px solid #c99d6e;box-shadow:inset 0 2px 13px #edc48e2a,0 17px 27px #0008,0 0 35px #d6a26d22;transform:rotateY(var(--logo-y,0deg)) rotateX(var(--logo-x,0deg));transition:transform .3s ease}
+.medallion img{width:72%;height:72%;object-fit:contain;filter:drop-shadow(0 5px 8px #0007)}
+@media(max-width:650px){.stage{height:290px}.card{height:270px;border-radius:18px}.copy{padding:29px 20px;max-width:79%}.brand{font-size:12px;letter-spacing:.07em}h1{font-size:23px;margin-top:21px;max-width:240px;overflow-wrap:anywhere}.desc{font-size:12px;max-width:245px}.date{margin-top:16px;font-size:11px}.avatar-zone{right:-10%;top:20%;width:47%;height:65%;opacity:.67}.halo{width:170px}}
+@media(max-width:380px){.copy{max-width:85%}.brand{font-size:11px}.desc{max-width:200px}.avatar-zone{opacity:.45}}
+@media(prefers-reduced-motion:reduce){.card,.avatar-zone,.medallion{transition:none!important;transform:none!important}}
+</style></head><body>
+<div class="stage"><section class="card" id="welcome-card" aria-label="Bright Trading welcome card">
+<div class="grid"></div><div class="light"></div>
+<div class="copy"><div class="brand">BRIGHT TRADING INDIA LLP</div>
+<h1>Welcome back, __USERNAME__<span class="dot">.</span></h1>
+<p class="desc">Diamond operations at a glance.</p>
+<div class="date">▦ &nbsp; __DATE__</div></div>
+<div class="avatar-zone"><div class="halo"></div><div class="medallion"><img src="__LOGO__" alt="Bright Trading India LLP original logo"></div></div>
+</section></div>
+<script>
+(function(){const c=document.getElementById('welcome-card');if(!c||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+c.addEventListener('pointermove',function(e){if(e.pointerType==='touch')return;
+const r=c.getBoundingClientRect(),x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+c.style.setProperty('--tilt-y',((x-.5)*13)+'deg');c.style.setProperty('--tilt-x',((.5-y)*9)+'deg');
+c.style.setProperty('--mouse-x',(x*100)+'%');c.style.setProperty('--mouse-y',(y*100)+'%');
+c.style.setProperty('--avatar-x',((x-.5)*20)+'px');c.style.setProperty('--avatar-y',((y-.5)*16)+'px');
+c.style.setProperty('--logo-y',((x-.5)*28)+'deg');c.style.setProperty('--logo-x',((.5-y)*23)+'deg');});
+c.addEventListener('pointerleave',()=>['--tilt-y','--tilt-x','--mouse-x','--mouse-y','--avatar-x','--avatar-y','--logo-x','--logo-y'].forEach(k=>c.style.removeProperty(k)));
+})();
+</script></body></html>"""
+        _welcome_html = (_welcome_html
+                         .replace("__USERNAME__", escape(str(st.session_state["username"])))
+                         .replace("__DATE__", datetime.now().strftime("%d %B %Y"))
+                         .replace("__LOGO__", COMPANY_LOGO_URI))
+        st.components.v1.html(_welcome_html, height=330, scrolling=False)
         if not is_video:
             # Same inventory scope and valuation as the former Buying Stock cards.
             cursor.execute(
