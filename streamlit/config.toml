@@ -1,7 +1,0 @@
-# Bright Trading India LLP — default light theme on every device.
-[theme]
-base = "light"
-primaryColor = "#087F8C"
-backgroundColor = "#F4F7FB"
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#15263F"
