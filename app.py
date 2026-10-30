@@ -708,7 +708,7 @@ try:
 .home-summary {position:relative;isolation:isolate;box-sizing:border-box;min-height:122px;padding:17px 17px 15px;color:#fff;background:linear-gradient(115deg,#317bf5,#67a6fc);border:0;border-radius:14px;box-shadow:0 8px 22px rgba(29,73,143,.16);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;perspective:700px;}
 .home-summary::before {content:"";position:absolute;z-index:0;width:152px;height:152px;right:-63px;bottom:-82px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none;}
 .home-summary::after {content:"";position:absolute;z-index:0;width:90px;height:90px;right:-10px;top:-35px;border-radius:50%;background:rgba(255,255,255,.09);pointer-events:none;}
-.home-summary:hover {transform:none;box-shadow:0 11px 25px rgba(29,73,143,.19);}
+.home-summary:hover {transform:translateY(-4px);box-shadow:0 16px 30px rgba(29,73,143,.24);}
 .home-summary.amber {background:linear-gradient(115deg,#337af3,#6ba8fb);}
 .home-summary.blue {background:linear-gradient(115deg,#f47f4d,#ffb166);}
 .home-summary.green {background:linear-gradient(115deg,#27b9bc,#6ad4d0);}
