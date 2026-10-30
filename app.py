@@ -513,6 +513,18 @@ try:
  .bt-login-rule{margin-bottom:18px}
  .bt-login-panel-head{padding-bottom:18px!important}
 }
+/* Targeted responsive stability: no desktop visual change. */
+@media(max-width:650px){
+ [data-testid="stColumn"]:has(.bt-login-visual)>[data-testid="stVerticalBlock"],
+ [data-testid="stColumn"]:has(.bt-login-visual)>div>[data-testid="stVerticalBlock"],
+ [data-testid="stColumn"]:has(.bt-login-visual)>div>div{height:auto!important;min-height:0!important;}
+ [data-testid="stColumn"]:has(.bt-login-visual) [data-testid="stMarkdown"],
+ [data-testid="stColumn"]:has(.bt-login-visual) [data-testid="stMarkdownContainer"]{height:auto!important;}
+ [data-testid="stHorizontalBlock"]:has(.bt-login-visual):has(.bt-login-panel){height:auto!important;overflow:visible!important;}
+ [data-testid="stColumn"]:has(.bt-login-panel){min-width:0!important;max-width:100%!important;}
+ .bt-login-visual{height:280px!important;min-height:280px!important;}
+ .block-container:has(.bt-login-shell){max-width:100%!important;overflow-x:clip!important;}
+}
 @media(prefers-reduced-motion:reduce){.block-container:has(.bt-login-shell) *{transition:none!important;animation:none!important}}
 </style>
 """
@@ -549,7 +561,7 @@ try:
                 password = st.text_input("Password", key="login_pass", placeholder="Enter your password", type="password")
                 submitted = st.form_submit_button("Sign in  →", type="primary", use_container_width=True)
             if submitted:
-                role = check_login(username.strip(), password.strip())
+                role = check_login(username.strip(), password)
                 if role:
                     st.session_state["logged_in"] = True
                     st.session_state["username"] = username.strip()
@@ -565,20 +577,20 @@ try:
                 fp_new_pass = st.text_input("NEW PASSWORD", key="fp_new_pass", placeholder="Enter new password", type="password")
                 fp_new_pass2 = st.text_input("CONFIRM NEW PASSWORD", key="fp_new_pass2", placeholder="Re-enter new password", type="password")
                 if st.button("Update password", key="fp_reset_btn", use_container_width=True):
-                    if not fp_uname.strip() or not fp_old_pass.strip() or not fp_new_pass.strip() or not fp_new_pass2.strip():
+                    if not fp_uname.strip() or not fp_old_pass or not fp_new_pass or not fp_new_pass2:
                         st.warning("Please fill in all fields.")
                     elif fp_new_pass != fp_new_pass2:
                         st.warning("New password and confirm password do not match.")
-                    elif len(fp_new_pass.strip()) < 12:
+                    elif len(fp_new_pass) < 12:
                         st.warning("New password should be at least 12 characters.")
                     else:
-                        role_check = check_login(fp_uname.strip(), fp_old_pass.strip())
+                        role_check = check_login(fp_uname.strip(), fp_old_pass)
                         if not role_check:
                             st.error("❌ Username or current password is incorrect.")
                         else:
                             cursor.execute(
                                 "UPDATE users SET password=? WHERE username=?",
-                                (hash_pw(fp_new_pass.strip()), fp_uname.strip()),
+                                (hash_pw(fp_new_pass), fp_uname.strip()),
                             )
                             conn.commit()
                             st.success("✅ Password updated successfully. Please sign in with your new password.")
@@ -709,6 +721,12 @@ try:
 .home-summary-corner {display:none;}
 .home-summary-value {position:relative;z-index:1;color:#fff;font-size:clamp(17px,1.40vw,23px);font-weight:800;letter-spacing:-.035em;line-height:1.16;overflow-wrap:anywhere;padding-right:4px;font-variant-numeric:tabular-nums;}
 .home-summary-note {position:relative;z-index:1;margin-top:8px;font-size:10px;line-height:1.25;color:rgba(255,255,255,.88);}
+/* Fit long values without changing the original six KPI gradients or desktop sizing. */
+.home-summary{min-width:0!important;}
+.home-summary-value{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal;}
+@media(max-width:1250px){.home-summary{padding-left:11px;padding-right:11px}.home-summary-value{font-size:clamp(13px,1.45vw,21px)}}
+@media(max-width:760px){.home-summary-value{font-size:clamp(13px,3.1vw,20px)}.home-summary-label{padding-right:12px}}
+
 [class*="st-key-workspace_card_"] {transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease!important;}
 .workspace-shell {margin-top:12px;}
 .workspace-header {display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:6px 0 14px;}
@@ -838,27 +856,28 @@ try:
   box-shadow:0 6px 15px color-mix(in srgb,var(--accent) 30%,transparent),inset 0 1px rgba(255,255,255,.3)!important;
 }
 /* Key-specific style works even if Streamlit changes the button wrapper nesting. */
+/* A native Streamlit button overlays the entire existing card. No JS navigation. */
+[class*="st-key-workspace_card_"] {position:relative!important;isolation:isolate;}
 [class*="st-key-nav_card_"] {
-  position:absolute!important;right:23px!important;bottom:22px!important;
-  left:auto!important;top:auto!important;
-  width:46px!important;height:46px!important;min-width:46px!important;max-width:46px!important;
-  margin:0!important;padding:0!important;z-index:30!important;
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  min-width:0!important;max-width:none!important;margin:0!important;padding:0!important;
+  z-index:30!important;
 }
 [class*="st-key-nav_card_"] button {
-  display:block!important;position:relative!important;
-  width:46px!important;height:46px!important;min-width:46px!important;min-height:46px!important;max-width:46px!important;
-  margin:0!important;padding:0!important;border:0!important;border-radius:50%!important;
-  background:transparent!important;box-shadow:none!important;opacity:0!important;cursor:pointer!important;
-  transform:none!important;
+  display:block!important;position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;min-width:0!important;
+  min-height:0!important;max-width:none!important;max-height:none!important;
+  margin:0!important;padding:0!important;border:0!important;border-radius:15px!important;
+  background:transparent!important;color:transparent!important;font-size:0!important;
+  box-shadow:none!important;opacity:1!important;cursor:pointer!important;transform:none!important;
 }
-[class*="st-key-nav_card_"] button:hover {background:transparent!important;box-shadow:none!important;transform:none!important;}
-[class*="st-key-nav_card_"] button:focus-visible {opacity:.23!important;background:#fff!important;outline:3px solid var(--accent)!important;outline-offset:3px!important;}
-[class*="st-key-workspace_card_"]:has([class*="st-key-nav_card_"] button:hover) .ws-round-arrow {transform:translateY(-2px);filter:brightness(1.08);}
+[class*="st-key-nav_card_"] button:hover{background:transparent!important;box-shadow:none!important;transform:none!important;}
+[class*="st-key-nav_card_"] button:focus-visible{outline:3px solid var(--accent)!important;outline-offset:-3px!important;background:transparent!important;}
+[class*="st-key-workspace_card_"]:hover .ws-round-arrow {transform:translateY(-2px);filter:brightness(1.08);}
 [class*="st-key-workspace_card_"] .module-card.ws-v2 {padding-right:86px!important;}
 @media(max-width:760px) {
  .module-card.ws-v2 .ws-round-arrow {right:14px!important;bottom:16px!important;width:40px!important;height:40px!important;font-size:26px!important;}
- [class*="st-key-nav_card_"] {right:14px!important;bottom:16px!important;left:auto!important;top:auto!important;width:40px!important;height:40px!important;min-width:40px!important;max-width:40px!important;}
- [class*="st-key-nav_card_"] button {width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;}
+ /* Full-card click target adapts automatically to mobile card dimensions. */
  .module-card.ws-v2 {padding-right:66px!important;}
 }
 </style><div class="home-dashboard"></div>
@@ -960,12 +979,36 @@ try:
                 "return_date, 'Recorded' FROM buying_stock WHERE COALESCE(return_date,'')<>'' GROUP BY return_date "
                 "UNION ALL SELECT 'Export recorded', CAST(COUNT(*) AS TEXT) || ' stones', "
                 "exported_at, 'Recorded' FROM buying_stock WHERE COALESCE(exported_at,'')<>'' GROUP BY exported_at"
-                ") recent ORDER BY event_time DESC LIMIT 6", conn,
+                ") recent", conn,
             )
             if activity.empty:
                 st.info("No recent activity yet. Upload a buying file to get started.")
             else:
                 activity.columns = ["Activity", "Details", "Time · IST", "Status"]
+                # Different source columns may contain DD-MM-YYYY, ISO dates or timestamps.
+                # Parse per value, sort as dates rather than alphabetical strings.
+                def _activity_date(value):
+                    if pd.isna(value) or not str(value).strip():
+                        return pd.NaT
+                    raw = str(value).strip()
+                    for fmt in ("%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M", "%d-%m-%Y",
+                                "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
+                                "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f",
+                                "%Y-%m-%d"):
+                        try:
+                            return pd.Timestamp(_datetime.strptime(raw, fmt))
+                        except ValueError:
+                            continue
+                    parsed = pd.to_datetime(raw, errors="coerce", utc=True)
+                    return parsed.tz_convert("Asia/Kolkata").tz_localize(None) if pd.notna(parsed) else pd.NaT
+
+                activity["_sort_time"] = activity["Time · IST"].map(_activity_date)
+                activity = activity.sort_values("_sort_time", ascending=False, na_position="last", kind="stable").head(6)
+                activity["Time · IST"] = [
+                    t.strftime("%d-%m-%Y %H:%M") if pd.notna(t) else str(raw)
+                    for t, raw in zip(activity["_sort_time"], activity["Time · IST"])
+                ]
+                activity = activity.drop(columns=["_sort_time"])
                 st.dataframe(activity, hide_index=True, use_container_width=True)
                 st.caption("Recent activity is based on current stock records.")
         st.stop()
@@ -1552,7 +1595,7 @@ try:
             # ── shared helper ────────────────────────────────────────────────────────
             def normalize_cert(cert: str) -> str:
                 """If user pastes a 9-digit number without LG prefix, auto-add LG."""
-                c = str(cert).strip().upper()
+                c = cert.strip()
                 if c.isdigit() and len(c) == 9:
                     return "LG" + c
                 return c
@@ -1576,8 +1619,7 @@ try:
 
                     # First check: does this certificate exist in buying stock at all?
                     cursor.execute(
-                        "SELECT report_no, lot_no, stock_status FROM buying_stock "
-                        "WHERE UPPER(TRIM(report_no)) = UPPER(TRIM(?))",
+                        "SELECT report_no, lot_no, stock_status FROM buying_stock WHERE report_no=?",
                         (report_no,),
                     )
                     data = cursor.fetchone()
@@ -1604,7 +1646,7 @@ try:
                         cursor.execute(
                             "UPDATE buying_stock SET lot_no=?, lot_date=?, lot_generated_by=?, "
                             "stock_status='LOT', memo_no=? WHERE report_no=?",
-                            (lot_no, lot_date, generated_by, memo, data[0]),
+                            (lot_no, lot_date, generated_by, memo, report_no),
                         )
                         generated += 1
                         results.append({"REPORT NO": report_no, "STATUS": "✅ Generated", "LOT NO": lot_no,
@@ -1648,20 +1690,15 @@ try:
                         f'<div style="background:#f5f5f5;border:1px solid #d4d4d4;border-left:4px solid #f59e0b;'
                         f'border-radius:8px;padding:14px 18px;margin:8px 0;">'
                         f'<p style="color:#92400e;font-size:14px;font-weight:800;margin:0 0 4px;">'
-                        f'⚠️ Not Generated — {skipped} Certificate(s)</p>'
+                        f'⚠️ Buying Not Updated — {skipped} Certificate(s)</p>'
                         f'<p style="color:#92400e;font-size:12px;margin:0;">'
-                        f'Check the result table: certificates may be missing from Buying Stock or not in LIVE status.</p>'
+                        f'These certificates were not found in the buying file. Please upload the buying file first.</p>'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
                 if results:
                     result_df = pd.DataFrame(results)
                     audit_cols = ["GENERATED BY", "GENERATION DATE & TIME"]
-                    # Missing/previously-generated certificates have no audit fields.
-                    # Create these columns before reordering to avoid KeyError.
-                    for col in audit_cols:
-                        if col not in result_df.columns:
-                            result_df[col] = ""
                     result_df = result_df[[c for c in result_df.columns if c not in audit_cols] + audit_cols]
                     st.dataframe(result_df, use_container_width=True)
 
