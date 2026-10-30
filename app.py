@@ -708,7 +708,7 @@ try:
 .home-summary {position:relative;isolation:isolate;box-sizing:border-box;min-height:122px;padding:17px 17px 15px;color:#fff;background:linear-gradient(115deg,#317bf5,#67a6fc);border:0;border-radius:14px;box-shadow:0 8px 22px rgba(29,73,143,.16);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;perspective:700px;}
 .home-summary::before {content:"";position:absolute;z-index:0;width:152px;height:152px;right:-63px;bottom:-82px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none;}
 .home-summary::after {content:"";position:absolute;z-index:0;width:90px;height:90px;right:-10px;top:-35px;border-radius:50%;background:rgba(255,255,255,.09);pointer-events:none;}
-.home-summary:hover {transform:translateY(-2px);box-shadow:0 14px 28px rgba(29,73,143,.22);}
+.home-summary:hover {transform:none;box-shadow:0 11px 25px rgba(29,73,143,.19);}
 .home-summary.amber {background:linear-gradient(115deg,#337af3,#6ba8fb);}
 .home-summary.blue {background:linear-gradient(115deg,#f47f4d,#ffb166);}
 .home-summary.green {background:linear-gradient(115deg,#27b9bc,#6ad4d0);}
@@ -719,10 +719,11 @@ try:
 .home-summary-label {font-size:11px;line-height:1.35;font-weight:500;color:rgba(255,255,255,.92);white-space:normal;overflow-wrap:anywhere;padding-right:48px;}
 .home-summary-icon {position:absolute;z-index:0;right:2px;top:7px;display:flex;justify-content:center;align-items:center;width:68px;height:68px;font-size:50px;line-height:1;font-weight:750;color:rgba(255,255,255,.23);transform:rotate(-13deg);pointer-events:none;text-shadow:0 2px 9px rgba(255,255,255,.08);}
 .home-summary-corner {display:none;}
-.home-summary-value {position:relative;z-index:1;display:inline-block;color:#fff;font-size:clamp(18px,1.5vw,24px);font-weight:900;letter-spacing:-.045em;line-height:1.12;overflow-wrap:anywhere;padding-right:4px;font-variant-numeric:tabular-nums;background:linear-gradient(180deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.96) 32%,rgba(242,248,255,.93) 60%,rgba(226,238,255,.88) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 1px 0 rgba(255,255,255,.18)) drop-shadow(0 3px 0 rgba(0,0,0,.07)) drop-shadow(0 7px 10px rgba(10,21,40,.2));transition:transform .18s ease,filter .18s ease;}
-.home-summary-value::before {content:attr(data-value);position:absolute;left:0;top:0;z-index:-1;color:rgba(18,33,53,.23);-webkit-text-fill-color:rgba(18,33,53,.23);transform:translate(1px,3px) scale(1.01);filter:blur(.2px);pointer-events:none;}
-.home-summary-value::after {content:attr(data-value);position:absolute;left:0;top:0;z-index:-2;color:rgba(255,255,255,.18);-webkit-text-fill-color:rgba(255,255,255,.18);transform:translate(-1px,-1px);pointer-events:none;}
-.home-summary:hover .home-summary-value {transform:translateY(-2px) scale(1.02);filter:drop-shadow(0 1px 0 rgba(255,255,255,.22)) drop-shadow(0 4px 0 rgba(0,0,0,.08)) drop-shadow(0 10px 14px rgba(10,21,40,.25));}
+/* Crisp embossed KPI numbers: one rendered text layer, no duplicate glyph overlays. */
+.home-summary-value {position:relative;z-index:1;display:inline-block;max-width:100%;color:#fff;font-size:clamp(18px,1.5vw,24px);font-weight:850;letter-spacing:-.035em;line-height:1.16;overflow-wrap:anywhere;padding-right:3px;font-variant-numeric:tabular-nums;text-shadow:0 1px 0 rgba(255,255,255,.18),0 2px 0 rgba(15,33,58,.17),0 4px 7px rgba(12,28,49,.16);transform-origin:left center;transition:transform .18s ease,text-shadow .18s ease;}
+.home-summary-value::before,.home-summary-value::after {content:none!important;display:none!important;}
+.home-summary:hover .home-summary-value {transform:translateY(-1px) perspective(400px) rotateX(5deg);text-shadow:0 1px 0 rgba(255,255,255,.2),0 3px 0 rgba(15,33,58,.19),0 6px 9px rgba(12,28,49,.22);}
+@media(prefers-reduced-motion:reduce){.home-summary-value{transition:none!important}.home-summary:hover .home-summary-value{transform:none!important}}
 .home-summary-note {position:relative;z-index:1;margin-top:8px;font-size:10px;line-height:1.25;color:rgba(255,255,255,.88);}
 /* Fit long values without changing the original six KPI gradients or desktop sizing. */
 .home-summary{min-width:0!important;}
