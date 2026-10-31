@@ -993,6 +993,32 @@ try:
  [class*="st-key-workspace_card_"],.module-card.ws-v2,.module-card.ws-v2 .module-icon,.module-card.ws-v2 .module-decor,.module-card.ws-v2 .ws-round-arrow,.module-card.ws-v2 .ws-soft-glow{transition:none!important}
  [class*="st-key-workspace_card_"]:hover,[class*="st-key-workspace_card_"]:hover .module-icon,[class*="st-key-workspace_card_"]:hover .module-decor,[class*="st-key-workspace_card_"]:hover .ws-round-arrow{transform:none!important}
 }
+
+/* COMPACT WORKSPACE CARDS — preserves the six module colors and native full-card buttons */
+.module-card.ws-v2 {
+ height:122px!important;min-height:122px!important;
+ padding:17px 52px 12px 94px!important;border-radius:13px!important;
+}
+.module-card.ws-v2 .module-icon {
+ left:18px!important;top:19px!important;width:54px!important;height:54px!important;
+ border-radius:14px!important;font-size:25px!important;
+}
+.module-card.ws-v2 .module-title {font-size:15px!important;margin:2px 0 6px!important;line-height:1.16!important;}
+.module-card.ws-v2 .module-copy {font-size:12px!important;line-height:1.34!important;max-width:235px!important;}
+.module-card.ws-v2 .module-decor {right:17px!important;top:30px!important;font-size:52px!important;}
+.module-card.ws-v2 .ws-round-arrow {right:15px!important;bottom:12px!important;width:35px!important;height:35px!important;font-size:23px!important;}
+.module-card.ws-v2:before {bottom:-64px!important;height:85px!important;}
+.module-card.ws-v2:after {bottom:-75px!important;height:92px!important;}
+.workspace-row-spacer {height:12px!important;min-height:12px!important;}
+[class*="st-key-workspace_card_"] .module-card.ws-v2 {padding-right:52px!important;}
+@media(max-width:760px){
+ .module-card.ws-v2{height:116px!important;min-height:116px!important;padding:15px 46px 9px 76px!important;}
+ .module-card.ws-v2 .module-icon{left:13px!important;top:17px!important;width:48px!important;height:48px!important;font-size:22px!important;}
+ .module-card.ws-v2 .module-title{font-size:14px!important;}
+ .module-card.ws-v2 .module-copy{font-size:11px!important;}
+ .module-card.ws-v2 .ws-round-arrow{right:10px!important;bottom:10px!important;width:31px!important;height:31px!important;font-size:21px!important;}
+ [class*="st-key-workspace_card_"] .module-card.ws-v2{padding-right:46px!important;}
+}
 </style><div class="home-dashboard"></div>
 """, unsafe_allow_html=True)
         # Interactive 3D home welcome card. This is deliberately isolated in an
