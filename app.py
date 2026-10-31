@@ -267,6 +267,73 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 }
 
 
+
+/* BT premium text-only action buttons: module pages only.
+   Home module click overlays, login and tab-like navigation are excluded. */
+.block-container:has(.bt-route-marker:not([data-route="home"]))
+  :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"])
+  button:not(.st-key-lots_section_tabs button):not(.st-key-return_section_tabs button) {
+  position:relative;isolation:isolate;overflow:hidden;
+  border-radius:11px;min-height:42px;padding:9px 17px;
+  font-size:12px;font-weight:700;letter-spacing:.005em;
+  background:linear-gradient(125deg,#ffffff,#f5f9fc);
+  border:1px solid #b8c8d4;color:#18334a;
+  box-shadow:0 5px 12px rgba(20,44,64,.09);
+  transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s ease,
+             background .25s ease,border-color .25s ease,color .25s ease!important;
+}
+.block-container:has(.bt-route-marker:not([data-route="home"]))
+  :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"])
+  button:not(.st-key-lots_section_tabs button):not(.st-key-return_section_tabs button):hover:not(:disabled){
+  transform:translateY(-3px)!important;
+  box-shadow:0 10px 20px rgba(20,44,64,.18)!important;
+  border-color:#0a999b;
+}
+.block-container:has(.bt-route-marker:not([data-route="home"]))
+  :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"])
+  button:not(.st-key-lots_section_tabs button):not(.st-key-return_section_tabs button):active:not(:disabled){
+  transform:translateY(0) scale(.97)!important;
+  box-shadow:0 2px 5px rgba(20,44,64,.12)!important;
+}
+.block-container:has(.bt-route-marker:not([data-route="home"]))
+  :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"])
+  button[kind="primary"]:not(.st-key-lots_section_tabs button):not(.st-key-return_section_tabs button),
+.block-container:has(.bt-route-marker:not([data-route="home"]))
+  :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"])
+  button[kind="primaryFormSubmit"]:not(.st-key-lots_section_tabs button):not(.st-key-return_section_tabs button){
+  background:linear-gradient(115deg,#078e94,#17b6b4)!important;
+  border-color:#07989c!important;color:white!important;
+  box-shadow:0 5px 13px rgba(8,142,148,.2)!important;
+}
+/* Specific business actions use color consistently; they remain native buttons. */
+[class*="st-key-gen_lots_"] button,[class*="st-key-master_prepare_excel_btn"] button,
+[class*="st-key-apply_edit_btn"] button{background:linear-gradient(115deg,#ad753f,#d6a16a)!important;border-color:#b58252!important;color:white!important;}
+[class*="st-key-confirm_return_btn"] button,[class*="st-key-confirm_delete_btn"] button,
+[class*="st-key-dq_delete_btn"] button{background:linear-gradient(115deg,#c13c55,#e36a77)!important;border-color:#c64c64!important;color:white!important;}
+[class*="st-key-buying_stock_excel_dl"] button,[class*="st-key-export_data_dl_btn"] button,
+[class*="st-key-full_db_download_btn"] button{background:linear-gradient(115deg,#286bd9,#508df7)!important;border-color:#3475dd!important;color:white!important;}
+/* Faint diagonal polish on hover, without a pointer-blocking overlay. */
+.block-container:has(.bt-route-marker:not([data-route="home"]))
+  :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"])
+  button:not(.st-key-lots_section_tabs button):not(.st-key-return_section_tabs button)::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(110deg,transparent 22%,rgba(255,255,255,.22) 49%,transparent 75%);
+  transform:translateX(-140%);transition:transform .65s ease;
+}
+.block-container:has(.bt-route-marker:not([data-route="home"]))
+  :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"])
+  button:not(.st-key-lots_section_tabs button):not(.st-key-return_section_tabs button):hover::after{transform:translateX(140%);}
+@media(prefers-reduced-motion:reduce){
+  .block-container:has(.bt-route-marker) :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"]) button{transition:none!important;}
+  .block-container:has(.bt-route-marker) :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"]) button::after{display:none!important;}
+}
+
+
+.block-container:has(.bt-route-marker:not([data-route="home"])) [class*="st-key-confirm_return_btn"] button,
+.block-container:has(.bt-route-marker:not([data-route="home"])) [class*="st-key-confirm_delete_btn"] button,
+.block-container:has(.bt-route-marker:not([data-route="home"])) [class*="st-key-dq_delete_btn"] button{background:linear-gradient(115deg,#c13c55,#e36a77)!important;border-color:#c64c64!important;color:white!important;}
+.block-container:has(.bt-route-marker:not([data-route="home"])) [class*="st-key-gen_lots_"] button,
+.block-container:has(.bt-route-marker:not([data-route="home"])) [class*="st-key-apply_edit_btn"] button{background:linear-gradient(115deg,#ad753f,#d6a16a)!important;border-color:#b58252!important;color:white!important;}
 </style>
 """.replace("__COMPANY_LOGO__", COMPANY_LOGO_URI), unsafe_allow_html=True)
 
@@ -559,7 +626,7 @@ try:
             with st.form("bright_login", clear_on_submit=False):
                 username = st.text_input("Username", key="login_user", placeholder="Enter your username")
                 password = st.text_input("Password", key="login_pass", placeholder="Enter your password", type="password")
-                submitted = st.form_submit_button("Sign in  →", type="primary", use_container_width=True)
+                submitted = st.form_submit_button("Sign in", type="primary", use_container_width=True)
             if submitted:
                 role = check_login(username.strip(), password)
                 if role:
@@ -689,7 +756,7 @@ try:
 
     # ── BACK-TO-HOME BAR (shown on every page except Home) ────────────────────
     if st.session_state["page"] != "home":
-        if st.button("← Back to Home", key="back_home_btn"):
+        if st.button("Back to Home", key="back_home_btn"):
             st.session_state["page"] = "home"
             st.rerun()
         st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
@@ -1180,7 +1247,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                 if missing:
                     st.error(f"❌ Missing columns: {missing}")
                 else:
-                    if st.button("🚀 Upload to SQL", key="upload_sql_btn"):
+                    if st.button("Upload to SQL", key="upload_sql_btn"):
                         upload_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         progress = st.progress(0)
                         try:
@@ -1887,7 +1954,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                         unsafe_allow_html=True,
                     )
                     bc3.download_button(
-                        label="⬇ Excel",
+                        label="Excel",
                         data=_today_excel_buf,
                         file_name=f"Today_Lots_{datetime.now().strftime('%d%m%Y')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1919,7 +1986,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                                 }).fillna("")
                             txt_content = exp.to_csv(sep="\t", index=False)
                             st.download_button(
-                                label="⬇ Download TXT File",
+                                label="Download TXT File",
                                 data=txt_content,
                                 file_name=f"Lot_File_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
                                 mime="text/plain",
@@ -1952,7 +2019,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                             unsafe_allow_html=True,
                         )
 
-                    if st.button("📥 Generate TXT from Paste", key=paste_btn_key):
+                    if st.button("Generate TXT from Paste", key=paste_btn_key):
                         if not paste_list:
                             st.warning("Paste at least one certificate number.")
                         else:
@@ -1987,7 +2054,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                                     }).fillna("")
                                 txt_content = exp.to_csv(sep="\t", index=False)
                                 st.download_button(
-                                    label="⬇ Download TXT File",
+                                    label="Download TXT File",
                                     data=txt_content,
                                     file_name=f"Lot_File_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
                                     mime="text/plain",
@@ -2041,7 +2108,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                                 unsafe_allow_html=True,
                             )
 
-                    if st.button("🚀 Generate Lots (Excel)", key="gen_lots_excel_btn", type="primary"):
+                    if st.button("Generate Lots (Excel)", key="gen_lots_excel_btn", type="primary"):
                         if not xl_report_list:
                             st.warning("Upload a valid Excel file first.")
                         else:
@@ -2084,7 +2151,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                             unsafe_allow_html=True,
                         )
 
-                    if st.button("🚀 Generate Lots (Text)", key="gen_lots_text_btn", type="primary"):
+                    if st.button("Generate Lots (Text)", key="gen_lots_text_btn", type="primary"):
                         if not cp_list:
                             st.warning("Paste at least one certificate number.")
                         elif not cp_memo.strip():
@@ -2194,7 +2261,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                             if st.session_state.get("master_txt_content"):
                                 st.success(f"✅ {st.session_state['master_txt_count']} stones ready for TXT download")
                                 st.download_button(
-                                    "⬇ Download TXT File",
+                                    "Download TXT File",
                                     data=st.session_state["master_txt_content"],
                                     file_name=f"Master_Lot_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt",
                                     mime="text/plain",
@@ -2308,7 +2375,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
 
                         return_text = st.text_area("Paste REPORT Numbers", key="return_textbox")
 
-                        if st.button("🔴 Confirm Return", key="confirm_return_btn", type="primary"):
+                        if st.button("Confirm Return", key="confirm_return_btn", type="primary"):
                             if return_text.strip():
                                 report_list_r = [x.strip() for x in return_text.splitlines() if x.strip()]
                                 returned = not_found = 0
@@ -2359,7 +2426,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
 
                             ret_dl1, ret_dl2 = st.columns([5, 1])
                             ret_dl2.download_button(
-                                label="⬇ Excel",
+                                label="Excel",
                                 data=_ret_excel_buf,
                                 file_name=f"Return_Stones_{datetime.now().strftime('%d%m%Y')}.xlsx",
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2449,7 +2516,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
 
                         st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
 
-                        if st.button("🔄 Confirm — Lot Cancel ", key="confirm_revert_lot_btn", type="primary"):
+                        if st.button("Confirm Lot Cancel", key="confirm_revert_lot_btn", type="primary"):
                             if not revert_text.strip():
                                 st.warning("⚠️ No certificate number pasted.")
                             else:
@@ -2633,7 +2700,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                         export_location_input = ef2.text_input("Export Location", key="exp_location_input")
                         export_part_input    = ef3.selectbox("Export Part",      key="exp_part_input",     options=["Part-A", "Part-B"])
 
-                    if st.button("✈️ Confirm Export", key="confirm_export_btn", type="primary"):
+                    if st.button("Confirm Export", key="confirm_export_btn", type="primary"):
                         if not export_list:
                             st.warning("⚠️ Paste at least one certificate number.")
                         elif not export_date_input:
@@ -2769,7 +2836,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                         height=120,
                         label_visibility="collapsed",
                     )
-                    if st.button("↩️ Undo Export", key="undo_export_btn"):
+                    if st.button("Undo Export", key="undo_export_btn"):
                         if not undo_text.strip():
                             st.warning("⚠️ Paste at least one certificate number.")
                         else:
@@ -2813,7 +2880,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
             if admin_section == '📥 Full Database Download':
                 st.markdown(_label("📥  Export entire database as Excel", margin_bottom=16), unsafe_allow_html=True)
 
-                if st.button("📥 Generate Database Export", key="full_db_generate_btn", use_container_width=True):
+                if st.button("Generate Database Export", key="full_db_generate_btn", use_container_width=True):
                     full_df = read_frame("SELECT * FROM buying_stock ORDER BY id DESC", conn)
                     if full_df.empty:
                         st.warning("⚠️ No data found in database.")
@@ -2842,7 +2909,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                     st.markdown('<div style="height:14px;"></div>', unsafe_allow_html=True)
 
                     st.download_button(
-                        label="⬇ Download Full Database (.xlsx)",
+                        label="Download Full Database (.xlsx)",
                         data=st.session_state["full_db_export_bytes"],
                         file_name=f"LGD_Full_DB_{datetime.now().strftime('%d%m%Y_%H%M%S')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2880,7 +2947,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                     if not_found_del:
                         st.warning(f"Not found in DB: {', '.join(not_found_del)}")
 
-                confirm_delete = st.button("🗑 Confirm Delete", key="confirm_delete_btn")
+                confirm_delete = st.button("Confirm Delete", key="confirm_delete_btn")
                 if confirm_delete:
                     if not del_text.strip():
                         st.warning("Please enter certificate numbers first.")
@@ -2975,7 +3042,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                             )
                             st.dataframe(edit_df, use_container_width=True)
 
-                            if st.button("✏️ Apply Changes", key="apply_edit_btn"):
+                            if st.button("Apply Changes", key="apply_edit_btn"):
                                 updated = not_found_e = 0
                                 TRIGGER_COLS = {"CTS", "PER CARAT", "BANK RATE"}
                                 needs_recalc = bool(TRIGGER_COLS & set(updatable))
@@ -3176,7 +3243,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                         targets=sorted(set(values_df['raw_name'].astype(str).tolist()) | set(alias_map.values()))
                         standard=f2.selectbox('Select the correct standard name', ['— Type new standard name —']+targets,key=f'dq_standard_pick_{category}')
                         new_standard=f2.text_input('Or enter a new standard name',key=f'dq_standard_new_{category}',placeholder='Example: ROUND')
-                        save=st.form_submit_button('✅ Save Mapping',type='primary',use_container_width=True)
+                        save=st.form_submit_button('Save Mapping',type='primary',use_container_width=True)
                     if save:
                         raw=(manual or (selected if selected!='— Select name —' else '')).strip().upper()
                         target=(new_standard or (standard if standard!='— Type new standard name —' else '')).strip().upper()
