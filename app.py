@@ -723,6 +723,83 @@ try:
         unsafe_allow_html=True,
     )
 
+    # Visual-only, route-scoped module themes. No database / navigation modifications.
+    st.markdown("""
+<style>
+/* Route scope avoids recoloring login, home cards or unrelated modules. */
+.block-container:has(.bt-route-marker[data-route="upload"]) {--bt-module:#2f7cf6;--bt-tint:#f0f6ff;--bt-stroke:#ccddff;--bt-rgb:47,124,246;}
+.block-container:has(.bt-route-marker[data-route="stock"]) {--bt-module:#ff7c1f;--bt-tint:#fff3e8;--bt-stroke:#f7d7b9;--bt-rgb:255,124,31;}
+.block-container:has(.bt-route-marker[data-route="lot"]) {--bt-module:#16a96b;--bt-tint:#ebfaf2;--bt-stroke:#bde8d1;--bt-rgb:22,169,107;}
+.block-container:has(.bt-route-marker[data-route="return"]) {--bt-module:#7a4cf6;--bt-tint:#f4efff;--bt-stroke:#ded0ff;--bt-rgb:122,76,246;}
+.block-container:has(.bt-route-marker[data-route="export"]) {--bt-module:#ef476f;--bt-tint:#fff0f4;--bt-stroke:#ffcbd7;--bt-rgb:239,71,111;}
+.block-container:has(.bt-route-marker[data-route="admin"]) {--bt-module:#6a46f5;--bt-tint:#f3efff;--bt-stroke:#ddd4ff;--bt-rgb:106,70,245;}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) .section-header {
+  background:linear-gradient(106deg,var(--bt-tint),#fff 92%);border:1px solid var(--bt-stroke);
+  padding:14px 18px;border-radius:12px;margin:12px 0 17px;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) .section-header .icon {
+  background:var(--bt-tint)!important;color:var(--bt-module)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) .section-divider {background:var(--bt-stroke);}
+/* Keep all forms and data tables white for legibility. */
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) [data-testid="stFileUploaderDropzone"] {
+  background:var(--bt-tint)!important;border-color:var(--bt-module)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) [data-baseweb="tab"][aria-selected="true"] {
+  background:var(--bt-tint)!important;color:var(--bt-module)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) [data-baseweb="tab-highlight"] {
+  background:var(--bt-module)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) :is(input,textarea):focus {
+  border-color:var(--bt-module)!important;box-shadow:0 0 0 2px rgba(var(--bt-rgb),.13)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) [data-baseweb="select"]:focus-within > div {
+  border-color:var(--bt-module)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) [data-testid="stMetric"] {
+  border-color:var(--bt-stroke)!important;
+}
+/* All module primary actions follow the module theme. Exception: irreversible actions remain red. */
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"]) button[kind="primary"],
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"]) button[kind="primaryFormSubmit"] {
+  color:#fff!important;border-color:var(--bt-module)!important;
+  background:linear-gradient(112deg,var(--bt-module),rgba(var(--bt-rgb),.75))!important;
+  box-shadow:0 7px 17px rgba(var(--bt-rgb),.20)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"]) button[kind="primary"] p,
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"]) button[kind="primaryFormSubmit"] p {color:#fff!important;}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) :is(.stButton,.stDownloadButton,[data-testid="stFormSubmitButton"]) button:hover:not(:disabled) {
+  border-color:var(--bt-module)!important;box-shadow:0 9px 18px rgba(var(--bt-rgb),.19)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) button:focus-visible {outline-color:var(--bt-module)!important;}
+/* Tab button strips defined in the app are not ordinary CTA buttons. */
+.block-container:has(.bt-route-marker[data-route="return"]) .st-key-return_section_tabs .stButton button[kind="primary"] {
+  background:transparent!important;color:var(--bt-module)!important;
+  border:0!important;border-bottom:3px solid var(--bt-module)!important;
+  border-radius:0!important;box-shadow:none!important;transform:none!important;
+}
+.block-container:has(.bt-route-marker[data-route="return"]) .st-key-return_section_tabs .stButton button[kind="primary"] p {color:var(--bt-module)!important;}
+.block-container:has(.bt-route-marker[data-route="lot"]) .st-key-lots_section_tabs .stButton button[kind="primary"] {
+  background:transparent!important;color:var(--bt-module)!important;
+  border:0!important;border-bottom:3px solid var(--bt-module)!important;
+  border-radius:0!important;box-shadow:none!important;transform:none!important;
+}
+.block-container:has(.bt-route-marker[data-route="lot"]) .st-key-lots_section_tabs .stButton button[kind="primary"] p {color:var(--bt-module)!important;}
+/* Intentionally retain destructive-action red styling. */
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) :is(.st-key-confirm_return_btn,.st-key-confirm_delete_btn,.st-key-dq_delete_btn,.st-key-confirm_revert_lot_btn) button {
+ background:linear-gradient(115deg,#c13c55,#e36a77)!important;border-color:#c64c64!important;color:#fff!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) :is(.st-key-confirm_return_btn,.st-key-confirm_delete_btn,.st-key-dq_delete_btn,.st-key-confirm_revert_lot_btn) button p {color:#fff!important;}
+/* Navigation is secondary and remains recognizable; just accent border/text. */
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) .st-key-back_home_btn button {
+ background:var(--bt-tint)!important;border-color:var(--bt-stroke)!important;color:var(--bt-module)!important;
+}
+.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) .st-key-back_home_btn button p {color:var(--bt-module)!important;}
+@media(prefers-reduced-motion:reduce){.block-container:has(.bt-route-marker[data-route]:not([data-route="home"])) button{transition:none!important;}}
+</style>
+""", unsafe_allow_html=True)
+
     h_col1, h_col2 = st.columns([5, 1.4])
     with h_col1:
         if st.session_state["page"] == "home":
