@@ -203,6 +203,8 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 /* A unique animation-name per route forces a fresh transition on Streamlit reruns.
    The former one-time .block-container animation did not restart when changing pages. */
 .bt-route-marker {display:none!important;}
+/* Route changes never animate the entire dashboard or obscure forms/tables. */
+
 @keyframes bt-route-home {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes bt-route-upload {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes bt-route-stock {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
@@ -210,13 +212,6 @@ button:focus-visible {outline:3px solid #38b6c0!important;outline-offset:3px;}
 @keyframes bt-route-return {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes bt-route-export {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 @keyframes bt-route-admin {from{opacity:.32;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
-.block-container:has(.bt-route-marker[data-route="home"]) {animation:bt-route-home .38s cubic-bezier(.19,1,.22,1) both;}
-.block-container:has(.bt-route-marker[data-route="upload"]) {animation:bt-route-upload .38s cubic-bezier(.19,1,.22,1) both;}
-.block-container:has(.bt-route-marker[data-route="stock"]) {animation:bt-route-stock .38s cubic-bezier(.19,1,.22,1) both;}
-.block-container:has(.bt-route-marker[data-route="lot"]) {animation:bt-route-lot .38s cubic-bezier(.19,1,.22,1) both;}
-.block-container:has(.bt-route-marker[data-route="return"]) {animation:bt-route-return .38s cubic-bezier(.19,1,.22,1) both;}
-.block-container:has(.bt-route-marker[data-route="export"]) {animation:bt-route-export .38s cubic-bezier(.19,1,.22,1) both;}
-.block-container:has(.bt-route-marker[data-route="admin"]) {animation:bt-route-admin .38s cubic-bezier(.19,1,.22,1) both;}
 
 /* Highlight actionable module navigation without changing Streamlit routing. */
 [class*="st-key-workspace_card_"] {transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease!important;}
@@ -754,11 +749,14 @@ try:
 
     st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
 
+    # Navigation callbacks update the route before the widget-triggered rerun.
+    # Avoid explicitly calling st.rerun() in navigation, which causes a second pass.
+    def _navigate_to(page):
+        st.session_state["page"] = page
+
     # ── BACK-TO-HOME BAR (shown on every page except Home) ────────────────────
     if st.session_state["page"] != "home":
-        if st.button("Back to Home", key="back_home_btn"):
-            st.session_state["page"] = "home"
-            st.rerun()
+        st.button("Back to Home", key="back_home_btn", on_click=_navigate_to, args=("home",))
         st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
 
     # Home dashboard; module visibility follows the existing role permissions.
@@ -1130,9 +1128,8 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                             f'</div>',
                             unsafe_allow_html=True,
                         )
-                        if st.button("→", key=f"nav_card_{key}", help=f"Open {title}"):
-                            st.session_state["page"] = key
-                            st.rerun()
+                        st.button("→", key=f"nav_card_{key}", help=f"Open {title}",
+                                  on_click=_navigate_to, args=(key,))
             # Explicit spacing between workspace rows. Streamlit does not
             # guarantee a gap for consecutive, independently rendered column rows.
             if start + 3 < len(_nav):
@@ -1492,8 +1489,10 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
     if tab3:
         # Non-destructive migration: retain all existing lots and dates.
         # A separate field is required to audit which signed-in user created a lot.
-        cursor.execute("ALTER TABLE buying_stock ADD COLUMN IF NOT EXISTS lot_generated_by TEXT")
-        conn.commit()
+        if not st.session_state.get("_lot_generated_by_schema_checked", False):
+            cursor.execute("ALTER TABLE buying_stock ADD COLUMN IF NOT EXISTS lot_generated_by TEXT")
+            conn.commit()
+            st.session_state["_lot_generated_by_schema_checked"] = True
         with st.container(key="lots_page"):
             st.markdown("""
 <style>
