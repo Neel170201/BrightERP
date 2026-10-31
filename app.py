@@ -884,6 +884,50 @@ try:
  /* Full-card click target adapts automatically to mobile card dimensions. */
  .module-card.ws-v2 {padding-right:66px!important;}
 }
+
+/* Workspace V2: polished hover, icon motion and restrained color glow.
+   Keep Streamlit's invisible native button across the whole card for real navigation. */
+[class*="st-key-workspace_card_"] {
+  --accent:#156cf4;
+  transition:transform .34s cubic-bezier(.2,.8,.2,1), filter .34s ease!important;
+  will-change:auto;
+}
+[class*="st-key-workspace_card_"]:hover {
+  transform:translateY(-5px)!important;
+  box-shadow:none!important;
+  filter:drop-shadow(0 13px 15px rgba(23,47,82,.16));
+}
+.module-card.ws-v2 {
+  transition:border-color .3s ease,box-shadow .34s ease!important;
+  box-shadow:0 8px 22px rgba(22,52,92,.055)!important;
+}
+.module-card.ws-v2:hover {
+  border-color:color-mix(in srgb,var(--accent) 48%,white)!important;
+  box-shadow:0 14px 28px rgba(22,52,92,.085)!important;
+}
+/* Decorative soft spotlight uses CSS to avoid interfering with click targets. */
+.module-card.ws-v2 .ws-soft-glow {
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse 170px 135px at 76% 34%,color-mix(in srgb,var(--accent) 17%,transparent),transparent 93%);
+  opacity:0;transition:opacity .36s ease;
+}
+[class*="st-key-workspace_card_"]:hover .ws-soft-glow {opacity:1}
+.module-card.ws-v2 .module-icon {
+  transition:transform .36s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease!important;
+  transform-origin:50% 50%;
+}
+[class*="st-key-workspace_card_"]:hover .module-icon {
+  transform:translateY(-3px) rotate(-5deg) scale(1.065)!important;
+  box-shadow:0 9px 15px color-mix(in srgb,var(--accent) 11%,transparent)!important;
+}
+.module-card.ws-v2 .module-decor {transition:transform .4s ease,opacity .3s ease!important}
+[class*="st-key-workspace_card_"]:hover .module-decor {transform:translate(-9px,6px) scale(1.07)!important;opacity:.15!important}
+.module-card.ws-v2 .ws-round-arrow {transition:transform .3s cubic-bezier(.2,.8,.2,1),filter .3s ease!important}
+[class*="st-key-workspace_card_"]:hover .ws-round-arrow {transform:translate(2px,-3px)!important;filter:brightness(1.075)!important}
+@media(prefers-reduced-motion:reduce){
+ [class*="st-key-workspace_card_"],.module-card.ws-v2,.module-card.ws-v2 .module-icon,.module-card.ws-v2 .module-decor,.module-card.ws-v2 .ws-round-arrow,.module-card.ws-v2 .ws-soft-glow{transition:none!important}
+ [class*="st-key-workspace_card_"]:hover,[class*="st-key-workspace_card_"]:hover .module-icon,[class*="st-key-workspace_card_"]:hover .module-decor,[class*="st-key-workspace_card_"]:hover .ws-round-arrow{transform:none!important}
+}
 </style><div class="home-dashboard"></div>
 """, unsafe_allow_html=True)
         # Interactive 3D home welcome card. This is deliberately isolated in an
@@ -1011,6 +1055,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                     with st.container(border=False, key=f"workspace_card_{key}"):
                         st.markdown(
                             f'<div class="module-card ws-v2 ws-{key}">'
+                            f'<div class="ws-soft-glow" aria-hidden="true"></div>'
                             f'<div class="module-icon"><span class="glyph">{icon}</span></div>'
                             f'<div class="module-decor" aria-hidden="true">{decor}</div>'
                             f'<p class="module-title">{title}</p><p class="module-copy">{description}</p>'
@@ -1025,53 +1070,6 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
             # guarantee a gap for consecutive, independently rendered column rows.
             if start + 3 < len(_nav):
                 st.markdown('<div class="workspace-row-spacer" aria-hidden="true"></div>', unsafe_allow_html=True)
-        if not is_video:
-            st.markdown('<div class="home-section">Recent activity</div>', unsafe_allow_html=True)
-            # Derived from current records, rather than a separate historical audit log.
-            activity = read_frame(
-                "SELECT activity, details, event_time, status FROM ("
-                "SELECT 'Buying upload' AS activity, CAST(COUNT(*) AS TEXT) || ' stones' AS details, "
-                "upload_time AS event_time, 'Recorded' AS status FROM buying_stock "
-                "WHERE COALESCE(upload_time,'')<>'' GROUP BY upload_time "
-                "UNION ALL SELECT 'Lot created', COALESCE(lot_no,'') || ' · ' || CAST(COUNT(*) AS TEXT) || ' stones', "
-                "lot_date, 'Recorded' FROM buying_stock WHERE COALESCE(lot_date,'')<>'' "
-                "AND COALESCE(lot_no,'')<>'' GROUP BY lot_no,lot_date "
-                "UNION ALL SELECT 'Return recorded', CAST(COUNT(*) AS TEXT) || ' stones', "
-                "return_date, 'Recorded' FROM buying_stock WHERE COALESCE(return_date,'')<>'' GROUP BY return_date "
-                "UNION ALL SELECT 'Export recorded', CAST(COUNT(*) AS TEXT) || ' stones', "
-                "exported_at, 'Recorded' FROM buying_stock WHERE COALESCE(exported_at,'')<>'' GROUP BY exported_at"
-                ") recent", conn,
-            )
-            if activity.empty:
-                st.info("No recent activity yet. Upload a buying file to get started.")
-            else:
-                activity.columns = ["Activity", "Details", "Time · IST", "Status"]
-                # Different source columns may contain DD-MM-YYYY, ISO dates or timestamps.
-                # Parse per value, sort as dates rather than alphabetical strings.
-                def _activity_date(value):
-                    if pd.isna(value) or not str(value).strip():
-                        return pd.NaT
-                    raw = str(value).strip()
-                    for fmt in ("%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M", "%d-%m-%Y",
-                                "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
-                                "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f",
-                                "%Y-%m-%d"):
-                        try:
-                            return pd.Timestamp(_datetime.strptime(raw, fmt))
-                        except ValueError:
-                            continue
-                    parsed = pd.to_datetime(raw, errors="coerce", utc=True)
-                    return parsed.tz_convert("Asia/Kolkata").tz_localize(None) if pd.notna(parsed) else pd.NaT
-
-                activity["_sort_time"] = activity["Time · IST"].map(_activity_date)
-                activity = activity.sort_values("_sort_time", ascending=False, na_position="last", kind="stable").head(6)
-                activity["Time · IST"] = [
-                    t.strftime("%d-%m-%Y %H:%M") if pd.notna(t) else str(raw)
-                    for t, raw in zip(activity["_sort_time"], activity["Time · IST"])
-                ]
-                activity = activity.drop(columns=["_sort_time"])
-                st.dataframe(activity, hide_index=True, use_container_width=True)
-                st.caption("Recent activity is based on current stock records.")
         st.stop()
 
     # ── ROUTING FLAGS (replace the old st.tabs() tab objects) ─────────────────
