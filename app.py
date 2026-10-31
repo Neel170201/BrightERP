@@ -893,43 +893,45 @@ try:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 *{box-sizing:border-box}html,body{margin:0;padding:0;background:transparent;font-family:Inter,Arial,sans-serif}
-.stage{width:100%;height:330px;padding:5px 7px 15px;touch-action:pan-y}
-.card{position:relative;isolation:isolate;overflow:hidden;height:305px;border-radius:23px;background:linear-gradient(110deg,#08192d,#0d2b46 67%,#0b383c);border:1px solid rgba(212,156,82,.5);box-shadow:0 13px 32px rgba(11,43,80,.18);color:#f8f1e7}
-.fluid{position:absolute;inset:-36%;filter:blur(48px) saturate(1.35);pointer-events:none;overflow:hidden;contain:paint}
-.blob{position:absolute;border-radius:50%;mix-blend-mode:screen;opacity:.65;will-change:transform}
-.b1{left:35%;top:9%;width:54%;height:67%;background:radial-gradient(ellipse,#159e96aa,#17638b67 43%,transparent 75%);transform:translate(var(--x1,0px),var(--y1,0px))}
-.b2{left:54%;top:39%;width:48%;height:61%;background:radial-gradient(ellipse,#d9a068a1,#a3625750 45%,transparent 76%);transform:translate(var(--x2,0px),var(--y2,0px))}
-.b3{left:5%;top:46%;width:60%;height:67%;background:radial-gradient(ellipse,#246f9b78,#152f644d 48%,transparent 75%);transform:translate(var(--x3,0px),var(--y3,0px))}
-.b4{left:26%;top:4%;width:39%;height:52%;background:radial-gradient(ellipse,#c68f647c,transparent 73%);transform:translate(var(--x4,0px),var(--y4,0px))}
-.veil{position:absolute;inset:0;background:linear-gradient(90deg,#071729ef 0%,#071a2bd8 38%,#0b29343d 100%);pointer-events:none}
-.light{position:absolute;inset:0;pointer-events:none;background:radial-gradient(265px circle at var(--mx,75%) var(--my,48%),#e3b17634,transparent 83%)}
-.copy{position:relative;z-index:3;padding:36px 36px 28px;max-width:65%;pointer-events:none}
-.brand{font-size:clamp(10px,1.1vw,13px);font-weight:750;color:#dfb184;letter-spacing:2.2px;display:flex;align-items:center;gap:10px;white-space:nowrap}
-.brand:before{content:"";display:block;width:19px;height:1px;flex-shrink:0;background:#d9a46e}
-h1{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:clamp(27px,3.6vw,44px);line-height:1.05;letter-spacing:-1.2px;margin:24px 0 0;color:#fff9ef}
-h1 .user{display:block;font-style:italic;color:#e6bc86;background:linear-gradient(110deg,#c68e56,#f9dfb2 42%,#cd975e 75%,#f3ce9d);background-size:200% auto;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:gold-shine 8s ease-in-out infinite;overflow-wrap:anywhere}
+.stage{width:100%;height:390px;padding:5px 7px 14px;touch-action:pan-y}
+.card{position:relative;isolation:isolate;overflow:hidden;height:365px;border-radius:22px;background:linear-gradient(112deg,#071529,#102942 58%,#092e37);border:1px solid #d4a66f75;box-shadow:0 13px 32px rgba(11,43,80,.18);color:#f7f2ec}
+.fluid{position:absolute;inset:-34%;filter:blur(52px) saturate(1.4);pointer-events:none;overflow:hidden;contain:paint}
+.blob{position:absolute;border-radius:50%;mix-blend-mode:screen;opacity:.57;will-change:transform}
+.b1{left:29%;top:11%;width:50%;height:65%;background:radial-gradient(ellipse,#168f9cba,#26618b65,transparent 73%);transform:translate(var(--x1,0px),var(--y1,0px))}
+.b2{left:56%;top:40%;width:48%;height:62%;background:radial-gradient(ellipse,#db985a95,#a25d4344,transparent 75%);transform:translate(var(--x2,0px),var(--y2,0px))}
+.b3{left:4%;top:42%;width:51%;height:65%;background:radial-gradient(ellipse,#294f9ba0,transparent 74%);transform:translate(var(--x3,0px),var(--y3,0px))}
+.b4{left:28%;top:5%;width:38%;height:54%;background:radial-gradient(ellipse,#c68f647c,transparent 73%);transform:translate(var(--x4,0px),var(--y4,0px))}
+.veil{position:absolute;inset:0;background:linear-gradient(90deg,#061528dc,transparent 48%,#06192abc);pointer-events:none}
+.mesh{position:absolute;inset:0;opacity:.17;background-image:linear-gradient(#c8d8e617 1px,transparent 1px),linear-gradient(90deg,#c8d8e617 1px,transparent 1px);background-size:35px 35px;mask-image:radial-gradient(ellipse at center,black,transparent 75%);pointer-events:none}
+.light{position:absolute;inset:0;pointer-events:none;background:radial-gradient(260px circle at var(--mx,50%) var(--my,46%),#e3b17623,transparent 82%)}
+.layout{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.95fr) minmax(0,1fr);gap:13px;align-items:center;min-height:365px;padding:26px 34px 48px}
+.left{min-width:0}.left-title{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:clamp(25px,2.9vw,41px);line-height:1.06;letter-spacing:-1.2px;color:#fff8ef}
+.username{display:block;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:clamp(29px,3.5vw,45px);line-height:1.12;margin-top:5px;overflow-wrap:anywhere;color:#edc28d;background:linear-gradient(110deg,#bd854e,#ffe3b1 50%,#d49d63);background-size:200% auto;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:gold-shine 8s ease-in-out infinite}
 @keyframes gold-shine{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
-.desc{font-size:clamp(11px,1.1vw,13px);line-height:1.65;color:#c0d0dd;margin:12px 0 0;max-width:390px}
-.rule{margin-top:18px;width:110px;height:1px;background:linear-gradient(90deg,#e1ad78,transparent)}
-.footer{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:14px;color:#e3c5a0;font-size:10px;letter-spacing:.5px}
-.status{display:inline-block;width:6px;height:6px;flex-shrink:0;border-radius:50%;background:#6bd9c2;box-shadow:0 0 10px #6bd9c2}
-.avatar-zone{position:absolute;right:6%;top:5%;width:32%;height:89%;display:grid;place-items:center;pointer-events:none;z-index:2}
-.halo{position:absolute;width:min(250px,100%);aspect-ratio:1;border:1px solid #d9af7958;border-radius:50%;box-shadow:0 0 45px #d7a46318}
-.halo:before{content:"";position:absolute;inset:13px;border:1px dashed #d9af7950;border-radius:50%}.halo:after{content:"";position:absolute;inset:-11px;border:1px solid #d9af7928;border-radius:50%}
-.medallion{position:relative;width:72%;max-width:195px;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 28% 18%,#3a526b,#142b44 55%,#061522 95%);border:2px solid #d8a66e;box-shadow:inset 0 3px 15px #fff2c93a,inset 0 -14px 24px #0009,0 20px 35px #0008,0 0 35px #d8a66e34;transform:perspective(650px) translate(var(--lx,0px),var(--ly,0px)) rotateX(var(--lrx,0deg)) rotateY(var(--lry,0deg));transition:transform .19s ease}
-.medallion:after{content:"";position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle at var(--hx,30%) var(--hy,22%),#fff1ce47,transparent 40%);pointer-events:none}
-.medallion img{width:73%;height:73%;object-fit:contain;filter:drop-shadow(0 4px 6px #0008)}
-@media(max-width:650px){.stage{height:310px}.card{height:285px;border-radius:18px}.copy{max-width:82%;padding:28px 21px}.brand{letter-spacing:1px;font-size:10px}h1{font-size:31px;max-width:225px;margin-top:22px}.desc{max-width:218px;font-size:11px}.rule{margin-top:15px}.footer{max-width:215px;margin-top:12px;gap:9px}.avatar-zone{right:-14%;top:18%;width:54%;height:72%;opacity:.65}.halo{width:180px}}
-@media(max-width:380px){.copy{max-width:88%}h1{font-size:27px}.avatar-zone{opacity:.48}}
-@media(prefers-reduced-motion:reduce){.medallion{transition:none!important;transform:none!important}h1 .user{animation:none!important}.blob{will-change:auto}}
+.desc{font-size:11px;line-height:1.75;color:#c1cfda;max-width:245px;margin:17px 0 0}.mini-rule{width:95px;height:1px;background:linear-gradient(90deg,#e1a973,transparent);margin-top:21px}
+.left-status{display:flex;align-items:center;gap:8px;margin-top:17px;color:#d2e1e0;font-size:9px;letter-spacing:1.1px}.status-dot{width:6px;height:6px;border-radius:50%;background:#67dcc3;box-shadow:0 0 12px #67dcc3}
+.center{position:relative;min-width:0;height:290px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none}
+.avatar-stage{position:relative;width:230px;max-width:100%;height:235px;display:grid;place-items:center}
+.aura{position:absolute;width:215px;max-width:100%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#d6aa7442,#d6aa7411 44%,transparent 70%);filter:blur(13px)}
+.orbit{position:absolute;width:220px;max-width:100%;aspect-ratio:1;border-radius:50%;border:1px solid #d7ad7850}
+.orbit.o2{width:242px;max-width:106%;border-style:dashed;opacity:.6}.orbit.o3{width:182px;border-color:#d7ad783e}
+.medallion{position:relative;z-index:2;width:155px;max-width:75%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 27% 18%,#465b70,#142b41 57%,#061423);border:2px solid #e4ae75;box-shadow:inset 0 4px 18px #ffe0b040,inset 0 -15px 25px #0009,0 20px 35px #0009,0 0 35px #dda86a44;transform:perspective(650px) translate(var(--lx,0px),var(--ly,0px)) rotateY(var(--lry,0deg)) rotateX(var(--lrx,0deg));transition:transform .19s ease}
+.medallion:after{content:"";position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle at var(--hx,30%) var(--hy,22%),#fff0d64d,transparent 40%);pointer-events:none}
+.medallion img{width:73%;height:73%;object-fit:contain;filter:drop-shadow(0 4px 5px #0008)}
+.company{text-align:center;font-size:clamp(10px,1vw,13px);font-weight:750;letter-spacing:1.5px;color:#e9bc86;text-shadow:0 2px 15px #e1aa6438;white-space:nowrap}
+.right{text-align:right;min-width:0}.right-label{font-size:10px;letter-spacing:2px;color:#dfae77;font-weight:700}.right-title{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:clamp(23px,2.7vw,35px);line-height:1.14;margin-top:20px;color:#f0d7b8}.right-desc{font-size:11px;color:#b7cbd6;line-height:1.8;margin-top:15px}.pill{display:inline-block;margin-top:19px;padding:9px 12px;border:1px solid #d3ad7855;border-radius:30px;background:#ffffff09;font-size:9px;letter-spacing:1px;color:#e7c49b}
+.credit{position:absolute;right:27px;bottom:16px;z-index:3;font-size:10px;color:#b9aeaa;letter-spacing:.6px}.credit strong{color:#eac59c;font-weight:650}
+@media(max-width:690px){.stage{height:420px}.card{height:395px;border-radius:18px}.layout{grid-template-columns:minmax(0,1fr) 140px;gap:7px;min-height:395px;padding:23px 20px 59px}.center{grid-column:2;grid-row:1/3;height:200px;gap:3px}.avatar-stage{width:140px;height:155px}.orbit{width:145px}.orbit.o2{width:165px}.orbit.o3{width:120px}.aura{width:160px}.medallion{width:108px}.company{font-size:8px;letter-spacing:.35px;white-space:normal;line-height:1.3}.left-title{font-size:27px}.username{font-size:30px}.desc{max-width:205px;font-size:10px}.right{grid-column:1/3;grid-row:2;text-align:left;margin-top:3px}.right-title{font-size:23px;margin-top:8px}.right-desc{margin-top:7px}.pill{margin-top:10px}.mini-rule{margin-top:12px}.left-status{margin-top:10px}.credit{right:19px;bottom:15px;font-size:9px}}
+@media(max-width:385px){.layout{grid-template-columns:minmax(0,1fr) 118px;padding-left:16px;padding-right:16px}.avatar-stage{width:118px}.company{font-size:7px}.left-title{font-size:24px}.username{font-size:27px}.credit{right:15px}}
+@media(prefers-reduced-motion:reduce){.medallion{transition:none!important;transform:none!important}.username{animation:none!important}.blob{will-change:auto}}
 </style></head><body>
 <div class="stage"><section class="card" id="welcome-card" aria-label="Bright Trading welcome card">
-<div class="fluid" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div></div><div class="veil"></div><div class="light"></div>
-<div class="copy"><div class="brand">BRIGHT TRADING INDIA LLP</div>
-<h1>Welcome back,<span class="user">__USERNAME__.</span></h1>
-<p class="desc">A refined workspace for precision, performance and every detail of your diamond operations.</p>
-<div class="rule"></div><div class="footer"><span class="status"></span><span>WORKSPACE READY</span><span aria-hidden="true">✦</span><span>__DATE__</span></div></div>
-<div class="avatar-zone"><div class="halo"></div><div class="medallion"><img src="__LOGO__" alt="Bright Trading India LLP original logo"></div></div>
+<div class="fluid" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div></div><div class="veil"></div><div class="mesh"></div><div class="light"></div>
+<div class="layout">
+<div class="left"><div class="left-title">Welcome back,</div><span class="username">__USERNAME__.</span><p class="desc">Your space for precision, progress and seamless diamond operations.</p><div class="mini-rule"></div><div class="left-status"><span class="status-dot"></span> WORKSPACE READY</div></div>
+<div class="center"><div class="avatar-stage"><div class="aura"></div><div class="orbit o2"></div><div class="orbit"></div><div class="orbit o3"></div><div class="medallion"><img src="__LOGO__" alt="Bright Trading India LLP original logo"></div></div><div class="company">BRIGHT TRADING INDIA LLP</div></div>
+<div class="right"><div class="right-label">YOUR WORKSPACE</div><div class="right-title">Excellence<br>in every detail.</div><div class="right-desc">Buying • Inventory • Lot Generation<br>Reports &amp; Operations</div><div class="pill">✦ &nbsp; __DATE__</div></div>
+</div><div class="credit">Prepared by <strong>Neel Limbachiya</strong></div>
 </section></div>
 <script>
 (function(){const card=document.getElementById('welcome-card');if(!card||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
@@ -940,8 +942,8 @@ card.style.setProperty('--x2',-dx*115+'px');card.style.setProperty('--y2',-dy*80
 card.style.setProperty('--x3',dx*63+'px');card.style.setProperty('--y3',-dy*65+'px');
 card.style.setProperty('--x4',-dx*75+'px');card.style.setProperty('--y4',dy*84+'px');
 card.style.setProperty('--mx',cx*100+'%');card.style.setProperty('--my',cy*100+'%');
-card.style.setProperty('--lx',dx*36+'px');card.style.setProperty('--ly',dy*29+'px');
-card.style.setProperty('--lry',dx*36+'deg');card.style.setProperty('--lrx',-dy*28+'deg');
+card.style.setProperty('--lx',dx*32+'px');card.style.setProperty('--ly',dy*27+'px');
+card.style.setProperty('--lry',dx*35+'deg');card.style.setProperty('--lrx',-dy*28+'deg');
 card.style.setProperty('--hx',25+cx*50+'%');card.style.setProperty('--hy',15+cy*62+'%');
 if(active||Math.abs(tx-cx)>.002||Math.abs(ty-cy)>.002){requestAnimationFrame(tick)}else{running=false}}
 function start(){if(!running){running=true;requestAnimationFrame(tick)}}
@@ -953,7 +955,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                          .replace("__USERNAME__", escape(str(st.session_state["username"])))
                          .replace("__DATE__", datetime.now().strftime("%d %B %Y"))
                          .replace("__LOGO__", COMPANY_LOGO_URI))
-        st.components.v1.html(_welcome_html, height=330, scrolling=False)
+        st.components.v1.html(_welcome_html, height=390, scrolling=False)
         if not is_video:
             # Same inventory scope and valuation as the former Buying Stock cards.
             cursor.execute(
