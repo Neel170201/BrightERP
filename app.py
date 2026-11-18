@@ -587,6 +587,46 @@ try:
  .bt-login-visual{height:280px!important;min-height:280px!important;}
  .block-container:has(.bt-login-shell){max-width:100%!important;overflow-x:clip!important;}
 }
+/* ===== Premium login redesign ===== */
+@keyframes btFadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes btFloat{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-14px) rotate(4deg)}}
+@keyframes btGlow{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.95;transform:scale(1.12)}}
+@keyframes btShine{0%{transform:translateX(-130%) skewX(-20deg)}60%,100%{transform:translateX(330%) skewX(-20deg)}}
+@keyframes btSlideIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+[data-testid="stAppViewContainer"]:has(.bt-login-shell){background:radial-gradient(900px 520px at 8% 6%,#dbe7ff 0%,transparent 60%),radial-gradient(800px 520px at 96% 94%,#ffe9d2 0%,transparent 58%),linear-gradient(135deg,#eef3fb 0%,#f8f4ee 100%)!important}
+[data-testid="stHorizontalBlock"]:has(.bt-login-visual):has(.bt-login-panel){border-radius:34px!important;border:1px solid #ffffffcc!important;box-shadow:0 34px 90px rgba(12,32,66,.22),0 6px 20px rgba(12,32,66,.08)!important;animation:btFadeUp .7s cubic-bezier(.2,.8,.2,1) both}
+.bt-login-visual:before{background:linear-gradient(180deg,rgba(2,10,24,.55) 0%,rgba(2,10,24,.12) 38%,rgba(2,10,24,.35) 68%,rgba(2,10,24,.88) 100%)!important}
+.bt-login-visual:after{content:"";position:absolute;width:340px;height:340px;right:-90px;top:-90px;border-radius:50%;background:radial-gradient(circle,rgba(239,178,109,.45),transparent 68%);animation:btGlow 6s ease-in-out infinite;pointer-events:none}
+.bt-logo-chip{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(255,255,255,.1)!important;border:1px solid rgba(239,178,109,.75)!important;box-shadow:0 12px 34px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25)!important}
+.bt-brand-name{background:linear-gradient(90deg,#ffd9a8,#e5a763,#ffd9a8);-webkit-background-clip:text;background-clip:text;color:transparent!important}
+.bt-hero-copy h1{font-size:34px!important;line-height:1.1!important}
+.bt-hero-copy h1 em{background:linear-gradient(90deg,#ffcf94,#f0a45a);-webkit-background-clip:text;background-clip:text;color:transparent!important}
+.bt-hero-gem{position:absolute!important;top:44px;right:38px;width:88px;height:88px;z-index:2;animation:btFloat 7s ease-in-out infinite;filter:drop-shadow(0 10px 22px rgba(239,178,109,.55))}
+.bt-hero-chips{position:absolute!important;left:44px;right:44px;bottom:36px;display:flex;flex-wrap:wrap;gap:10px;z-index:2}
+.bt-hero-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:999px;font-size:12px;font-weight:650;letter-spacing:.03em;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 6px 18px rgba(0,0,0,.2);transition:transform .2s ease,background .2s ease}
+.bt-hero-chip:hover{transform:translateY(-3px);background:rgba(255,255,255,.2)}
+.bt-hero-chip i{width:7px;height:7px;border-radius:50%;background:#efb26d;box-shadow:0 0 10px #efb26d;display:inline-block}
+[data-testid="stColumn"]:has(.bt-login-panel){background:linear-gradient(180deg,#ffffff 0%,#fbfcfe 100%)!important;animation:btSlideIn .75s .12s cubic-bezier(.2,.8,.2,1) both}
+.bt-login-eyebrow{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border-radius:999px;background:#fbf1e5;color:#b9763a!important;font-size:11px!important;letter-spacing:.2em!important;margin-bottom:18px!important}
+.bt-login-eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:#d6a16f;box-shadow:0 0 0 4px #d6a16f33}
+.bt-login-rule{background:linear-gradient(90deg,#d6a16f,#d6a16f00)!important;width:96px!important;height:3px!important;border-radius:3px}
+.bt-login-title{background:linear-gradient(100deg,#0c2347 0%,#1d4a96 100%);-webkit-background-clip:text;background-clip:text;color:transparent!important}
+.block-container:has(.bt-login-shell) [data-testid="stWidgetLabel"] p{font-size:11.5px!important;letter-spacing:.08em!important;text-transform:uppercase;color:#4a5d7a!important}
+.block-container:has(.bt-login-shell) [data-baseweb="input"]{min-height:54px!important;background:#f4f7fb!important;border:1.5px solid #e1e8f1!important;border-radius:14px!important;transition:all .22s ease!important}
+.block-container:has(.bt-login-shell) [data-baseweb="input"]:hover{border-color:#c5d2e4!important;background:#fff!important}
+.block-container:has(.bt-login-shell) [data-baseweb="input"]:focus-within{background:#fff!important;border-color:#c9935b!important;box-shadow:0 0 0 4px rgba(201,147,91,.18),0 8px 20px rgba(16,39,70,.08)!important;transform:translateY(-1px)}
+.block-container:has(.bt-login-shell) [data-baseweb="input"] input{padding-left:16px!important;font-weight:550!important}
+.block-container:has(.bt-login-shell) [data-baseweb="input"] input::placeholder{color:#a3b0c4!important;font-weight:450!important}
+.block-container:has(.bt-login-shell) [data-testid="stFormSubmitButton"] button{position:relative;overflow:hidden;height:56px!important;min-height:56px!important;border-radius:14px!important;background:linear-gradient(110deg,#0d2e6b 0%,#1b56b5 55%,#0d2e6b 100%)!important;background-size:200% 100%!important;letter-spacing:.06em!important;font-size:15px!important;box-shadow:0 14px 28px rgba(16,46,98,.32)!important}
+.block-container:has(.bt-login-shell) [data-testid="stFormSubmitButton"] button:after{content:"";position:absolute;top:0;left:0;width:34%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);animation:btShine 3.8s ease-in-out infinite}
+.block-container:has(.bt-login-shell) [data-testid="stFormSubmitButton"] button:hover{background-position:100% 0!important;transform:translateY(-3px)!important;box-shadow:0 20px 36px rgba(16,46,98,.4)!important}
+.block-container:has(.bt-login-shell) [data-testid="stFormSubmitButton"] button:active{transform:translateY(0) scale(.99)!important}
+.bt-login-help{padding:15px 18px;border-radius:14px;background:#f6f8fc;border:1px dashed #d3ddeb;margin:26px 0 16px!important}
+.block-container:has(.bt-login-shell) [data-testid="stExpander"]{border-radius:14px!important;border:1px solid #e1e8f1!important;transition:box-shadow .2s ease}
+.block-container:has(.bt-login-shell) [data-testid="stExpander"]:hover{box-shadow:0 8px 22px rgba(16,39,70,.08)!important}
+.bt-login-footer{margin-top:22px!important}
+@media(max-width:650px){.bt-hero-gem,.bt-hero-chips{display:none!important}}
+@media(prefers-reduced-motion:reduce){[data-testid="stHorizontalBlock"]:has(.bt-login-visual),[data-testid="stColumn"]:has(.bt-login-panel),.bt-hero-gem,.bt-login-visual:after,.block-container:has(.bt-login-shell) [data-testid="stFormSubmitButton"] button:after{animation:none!important}}
 @media(prefers-reduced-motion:reduce){.block-container:has(.bt-login-shell) *{transition:none!important;animation:none!important}}
 </style>
 """
@@ -604,6 +644,12 @@ try:
                 '<div class="bt-hero-rule"></div>'
                 '<div class="bt-hero-copy"><h1>Precision in every <em>operation.</em></h1>'
                 '<p>Your diamond workspace, connected.</p></div>'
+                '<svg class="bt-hero-gem" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="btg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2dc"/><stop offset="1" stop-color="#efb26d"/></linearGradient></defs><polygon points="30,14 70,14 92,40 50,90 8,40" fill="url(#btg1)" fill-opacity=".30" stroke="url(#btg1)" stroke-width="2.2" stroke-linejoin="round"/><polyline points="8,40 92,40" fill="none" stroke="url(#btg1)" stroke-width="1.8"/><polyline points="30,14 38,40 50,90 62,40 70,14" fill="none" stroke="url(#btg1)" stroke-width="1.6" stroke-linejoin="round"/><polyline points="38,40 50,14 62,40" fill="none" stroke="url(#btg1)" stroke-width="1.6" stroke-linejoin="round"/></svg>'
+                '<div class="bt-hero-chips">'
+                '<span class="bt-hero-chip"><i></i>Lot Management</span>'
+                '<span class="bt-hero-chip"><i></i>Certificates</span>'
+                '<span class="bt-hero-chip"><i></i>Label Print</span>'
+                '</div>'
                 '</div>'
             )
             st.markdown(visual_html, unsafe_allow_html=True)
@@ -656,7 +702,7 @@ try:
                             )
                             conn.commit()
                             st.success("✅ Password updated successfully. Please sign in with your new password.")
-            st.markdown('<div class="bt-login-footer">Bright Trading India LLP</div>', unsafe_allow_html=True)
+            st.markdown('<div class="bt-login-footer">&copy; Bright Trading India LLP &nbsp;&middot;&nbsp; Authorized personnel only</div>', unsafe_allow_html=True)
 
     # Login stays in server-side session state; never restore authentication from a URL.
     SESSION_EXPIRY_HOURS = 24
