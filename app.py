@@ -704,19 +704,95 @@ try:
                             st.success("✅ Password updated successfully. Please sign in with your new password.")
             st.markdown('<div class="bt-login-footer">&copy; Bright Trading India LLP &nbsp;&middot;&nbsp; Authorized personnel only</div>', unsafe_allow_html=True)
 
-    # Login stays in server-side session state; never restore authentication from a URL.
+    # Login is kept in server-side session state AND in a signed, expiring browser cookie,
+    # so a page refresh (new Streamlit session) does not log the user out for 24 hours.
+    # Nothing is ever restored from the URL. The cookie holds only a tamper-proof token
+    # (username + issue time + password fingerprint), never the password itself.
+    import hmac, hashlib, json
     SESSION_EXPIRY_HOURS = 24
+    SESSION_COOKIE = "bt_auth"
+    # Set SESSION_SECRET in Streamlit Secrets (any long random string). Falls back to a
+    # value derived from DATABASE_URL so it still works if you forget.
+    _SESSION_SECRET = (setting("SESSION_SECRET") or hashlib.sha256(("bt-session|" + url).encode()).hexdigest()).encode()
+
+    def _b64(raw):
+        return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+    def _unb64(txt):
+        return base64.urlsafe_b64decode(txt + "=" * (-len(txt) % 4))
+
+    def _sign(body):
+        return _b64(hmac.new(_SESSION_SECRET, body.encode(), hashlib.sha256).digest())
+
+    def _make_token(username, fp, issued):
+        body = _b64(json.dumps({"u": username, "fp": str(fp), "iat": issued}, separators=(",", ":")).encode())
+        return body + "." + _sign(body)
+
+    def _read_token(token):
+        """Return the token data if signature is valid and < 24h old, else None."""
+        try:
+            body, sig = token.split(".", 1)
+            if not hmac.compare_digest(sig, _sign(body)):
+                return None
+            data = json.loads(_unb64(body))
+            age = datetime.now().timestamp() - float(data["iat"])
+            if age < -300 or age > SESSION_EXPIRY_HOURS * 3600:
+                return None
+            return data
+        except Exception:
+            return None
+
+    def _cookie_js(value, max_age):
+        return (
+            "<script>(function(){try{var d=window.parent.document;"
+            "var sec=(window.parent.location.protocol==='https:')?'; Secure':'';"
+            f"d.cookie='{SESSION_COOKIE}={value}; Max-Age={int(max_age)}; Path=/; SameSite=Lax'+sec;"
+            "}catch(e){}})();</script>"
+        )
+
+    def _flush_cookie_op():
+        # Browser cookies can only be written from JavaScript, so login/logout queue the
+        # write and it is emitted on the next run (a st.rerun() would drop it otherwise).
+        op = st.session_state.pop("_cookie_op", None)
+        if op:
+            st.components.v1.html(_cookie_js(*op), height=0)
 
     def _save_session_to_params(username, role):
         cursor.execute("SELECT password FROM users WHERE username=?", (username,))
-        st.session_state["credential_fingerprint"] = fingerprint(cursor.fetchone()[0])
-        st.session_state["login_time"] = datetime.now().timestamp()
+        fp = fingerprint(cursor.fetchone()[0])
+        issued = datetime.now().timestamp()
+        st.session_state["credential_fingerprint"] = fp
+        st.session_state["login_time"] = issued
+        st.session_state["_logged_out"] = False
+        st.session_state["_cookie_op"] = (_make_token(username, fp, issued), SESSION_EXPIRY_HOURS * 3600)
         st.query_params.clear()
+
+    def _restore_login_from_cookie():
+        if st.session_state.get("logged_in") or st.session_state.get("_logged_out"):
+            return
+        try:
+            token = st.context.cookies.get(SESSION_COOKIE)  # needs Streamlit >= 1.37
+        except Exception:
+            return
+        data = _read_token(token) if token else None
+        if not data:
+            return
+        cursor.execute("SELECT password, role FROM users WHERE username=?", (data["u"],))
+        row = cursor.fetchone()
+        if not row or str(fingerprint(row[0])) != data["fp"]:
+            return  # unknown user, or password was changed -> token no longer valid
+        st.session_state["logged_in"] = True
+        st.session_state["username"] = data["u"]
+        st.session_state["role"] = row[1]
+        st.session_state["credential_fingerprint"] = fingerprint(row[0])
+        st.session_state["login_time"] = float(data["iat"])
 
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
         st.session_state["username"]  = ""
         st.session_state["role"]      = ""
+
+    _restore_login_from_cookie()
 
     if st.session_state["logged_in"]:
         cursor.execute("SELECT password, role FROM users WHERE username=?", (st.session_state["username"],))
@@ -727,6 +803,8 @@ try:
             st.query_params.clear()
             st.rerun()
         st.session_state["role"] = user[1]
+
+    _flush_cookie_op()
 
     if not st.session_state["logged_in"]:
         login_screen()
@@ -790,6 +868,8 @@ try:
                 st.session_state["logged_in"] = False
                 st.session_state["username"] = ""
                 st.session_state["role"] = ""
+                st.session_state["_logged_out"] = True      # stop cookie auto-login in this session
+                st.session_state["_cookie_op"] = ("", 0)    # delete the browser cookie
                 st.query_params.clear()
                 st.rerun()
 
@@ -3135,7 +3215,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                                     def pick(col, db_val):
                                         if col in updatable and str(row[col]).strip() != "":
                                             try:    return float(row[col])
-                                            except: return db_val
+                                            except (ValueError, TypeError): return db_val
                                         return db_val
 
                                     new_cts = pick("CTS",       db_cts)
@@ -3167,9 +3247,12 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                                             values.append(str(row[c]))
 
                                     # ── Always write the 3 recalculated columns to DB ─────────
-                                    set_parts += ["amount=?", "inr_pc=?", "inr_total=?"]
-                                    values    += [new_amt, new_inr_pc, new_inr_total]
+                                    if needs_recalc:
+                                        set_parts += ["amount=?", "inr_pc=?", "inr_total=?"]
+                                        values    += [new_amt, new_inr_pc, new_inr_total]
 
+                                    if not set_parts:
+                                        continue  # nothing to update for this row
                                     values.append(report_no)
                                     cursor.execute(
                                         f"UPDATE buying_stock SET {', '.join(set_parts)} WHERE report_no=?",
