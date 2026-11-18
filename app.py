@@ -2280,7 +2280,7 @@ card.addEventListener('pointerleave',function(){tx=.5;ty=.5;active=false;start()
                                                 "Weight": matched["cts"],
                                                 "Cost/Cts": round(cost * bank, 2),
                                             }).fillna("")
-                                        st.session_state["master_txt_content"] = export_df.to_csv(sep="\\t", index=False)
+                                        st.session_state["master_txt_content"] = export_df.to_csv(sep="\t", index=False)
                                         st.session_state["master_txt_count"] = len(export_df)
 
                             if st.session_state.get("master_txt_content"):
