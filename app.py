@@ -744,18 +744,52 @@ try:
 
     def _cookie_js(value, max_age):
         return (
-            "<script>(function(){try{var d=window.parent.document;"
-            "var sec=(window.parent.location.protocol==='https:')?'; Secure':'';"
-            f"d.cookie='{SESSION_COOKIE}={value}; Max-Age={int(max_age)}; Path=/; SameSite=Lax'+sec;"
-            "}catch(e){}})();</script>"
+            "<script>(function(){var n='" + SESSION_COOKIE + "',v='" + value + "',a=" + str(int(max_age)) + ";"
+            "var wins=[window.parent,window.top,window];"
+            "for(var i=0;i<wins.length;i++){try{var w=wins[i],d=w.document;"
+            "var sec=(w.location.protocol==='https:')?'; Secure':'';"
+            "d.cookie=n+'='+v+'; Max-Age='+a+'; Path=/; SameSite=Lax'+sec;"
+            "if(d.cookie.indexOf(n+'=')>-1||a===0)break;}catch(e){}}})();</script>"
         )
 
     def _flush_cookie_op():
-        # Browser cookies can only be written from JavaScript, so login/logout queue the
-        # write and it is emitted on the next run (a st.rerun() would drop it otherwise).
-        op = st.session_state.pop("_cookie_op", None)
-        if op:
-            st.components.v1.html(_cookie_js(*op), height=0)
+        # Browser cookies can only be written from JavaScript. While logged in, the same
+        # signed token is re-written on every run (idempotent), so one dropped write
+        # can never lose the login. Max-Age is the REMAINING time -> fixed 24h window.
+        if st.session_state.get("logged_in") and st.session_state.get("_auth_token"):
+            remaining = st.session_state.get("login_time", 0) + SESSION_EXPIRY_HOURS * 3600 - datetime.now().timestamp()
+            if remaining > 0:
+                st.components.v1.html(_cookie_js(st.session_state["_auth_token"], remaining), height=0)
+        elif st.session_state.get("_logged_out"):
+            st.components.v1.html(_cookie_js("", 0), height=0)
+
+    def _auth_debug():
+        """Open the app with ?auth_debug=1 to see exactly where the cookie login breaks."""
+        if st.query_params.get("auth_debug") != "1":
+            return
+        with st.expander("🔧 Login debug (remove ?auth_debug=1 to hide)", expanded=True):
+            st.write("Streamlit version:", st.__version__)
+            try:
+                ck = dict(st.context.cookies)
+                st.write("Cookies the SERVER sees:", list(ck.keys()))
+                tok = ck.get(SESSION_COOKIE)
+                st.write("bt_auth cookie reached server:", bool(tok))
+                if tok:
+                    data = _read_token(tok)
+                    st.write("token valid (signature + <24h):", bool(data))
+                    if data:
+                        st.write("token user:", data.get("u"))
+            except Exception as exc:
+                st.error(f"st.context.cookies not usable: {exc!r}  (Streamlit must be >= 1.37)")
+            st.write("logged_in:", st.session_state.get("logged_in"),
+                     "| _logged_out:", st.session_state.get("_logged_out"),
+                     "| has _auth_token:", bool(st.session_state.get("_auth_token")))
+            st.components.v1.html(
+                "<div id='o' style='font:13px sans-serif'>checking…</div><script>try{"
+                "var c=window.parent.document.cookie.split(';').map(function(x){return x.trim().split('=')[0]});"
+                "document.getElementById('o').textContent='Cookies the BROWSER has (JS view): '+c.join(', ');"
+                "}catch(e){document.getElementById('o').textContent='JS cannot access parent document: '+e}"
+                "</script>", height=40)
 
     def _save_session_to_params(username, role):
         cursor.execute("SELECT password FROM users WHERE username=?", (username,))
@@ -764,7 +798,7 @@ try:
         st.session_state["credential_fingerprint"] = fp
         st.session_state["login_time"] = issued
         st.session_state["_logged_out"] = False
-        st.session_state["_cookie_op"] = (_make_token(username, fp, issued), SESSION_EXPIRY_HOURS * 3600)
+        st.session_state["_auth_token"] = _make_token(username, fp, issued)
         st.query_params.clear()
 
     def _restore_login_from_cookie():
@@ -786,6 +820,7 @@ try:
         st.session_state["role"] = row[1]
         st.session_state["credential_fingerprint"] = fingerprint(row[0])
         st.session_state["login_time"] = float(data["iat"])
+        st.session_state["_auth_token"] = token
 
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
@@ -804,7 +839,9 @@ try:
             st.rerun()
         st.session_state["role"] = user[1]
 
+    st.markdown("<style>div:has(> iframe[height=\"0\"]){position:absolute!important;height:0!important;overflow:hidden!important;margin:0!important}</style>", unsafe_allow_html=True)
     _flush_cookie_op()
+    _auth_debug()
 
     if not st.session_state["logged_in"]:
         login_screen()
@@ -869,7 +906,7 @@ try:
                 st.session_state["username"] = ""
                 st.session_state["role"] = ""
                 st.session_state["_logged_out"] = True      # stop cookie auto-login in this session
-                st.session_state["_cookie_op"] = ("", 0)    # delete the browser cookie
+                st.session_state.pop("_auth_token", None)   # cookie is deleted on the next run
                 st.query_params.clear()
                 st.rerun()
 
